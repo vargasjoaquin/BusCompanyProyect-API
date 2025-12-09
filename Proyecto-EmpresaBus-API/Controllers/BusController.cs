@@ -1,0 +1,206 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Proyecto_EmpresaBus_API.Data;
+using Proyecto_EmpresaBus_API.Models;
+
+namespace Proyecto_EmpresaBus_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize(Roles = "Administrador")]
+    public class BusController : ControllerBase
+    {
+        private readonly ApiDbContext _context;
+
+        public BusController(ApiDbContext context)
+        {
+            _context = context;
+        }
+
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Autobus>>> GetAutobuses()
+        {
+            return await _context.Autobuses.Include(a => a.Empresa).ToListAsync();
+        }
+
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Autobus>> GetAutobus(int id)
+        {
+            var autobus = await _context.Autobuses
+                .Include(a => a.Empresa)
+                .FirstOrDefaultAsync(a => a.AutobusID == id);
+
+            if (autobus == null) return NotFound();
+
+            return autobus;
+        }
+
+        [HttpPost]
+        public async Task<ActionResult<Autobus>> PostAutobus(Autobus autobus)
+        {
+            var dbName = _context.Database.GetDbConnection().Database;
+            var serverName = _context.Database.GetDbConnection().DataSource;
+
+            Console.WriteLine($"[DEBUG] --------------------------------------------------");
+            Console.WriteLine($"[DEBUG] Intentando crear matrícula: '{autobus.Matricula}'");
+            Console.WriteLine($"[DEBUG] Servidor: {serverName}");
+            Console.WriteLine($"[DEBUG] Base de Datos: {dbName}");
+            Console.WriteLine($"[DEBUG] --------------------------------------------------");
+
+            // 1. Limpieza de datos (Quitar espacios en blanco al principio y final)
+            autobus.Matricula = autobus.Matricula?.Trim().ToUpper(); // Guardamos siempre en mayúsculas
+            autobus.Modelo = autobus.Modelo.Trim();
+
+            // 2. Validar Empresa
+            var empresaExiste = await _context.Empresas.AnyAsync(e => e.EmpresaID == autobus.EmpresaID);
+            if (!empresaExiste)
+            {
+                return BadRequest($"La empresa seleccionada no es válida.");
+            }
+
+            // 3. Validar Matrícula (Ignorando mayúsculas/minúsculas)
+            var yaExiste = await _context.Autobuses.AnyAsync(a => a.Matricula == autobus.Matricula);
+
+            if (yaExiste)
+            {
+                Console.WriteLine($"[ERROR] ¡La API encontró que '{autobus.Matricula}' YA EXISTE en {dbName}!");
+                return BadRequest($"La matrícula '{autobus.Matricula}' ya existe en la base de datos {dbName}.");
+            }
+
+            // 4. Limpiar relaciones para evitar errores de JSON cíclico
+            autobus.Empresa = null;
+            autobus.Asientos = null;
+            autobus.Viajes = null;
+
+            try
+            {
+                _context.Autobuses.Add(autobus);
+                await _context.SaveChangesAsync();
+
+                // OPCIONAL: Generar asientos automáticamente al crear el bus
+                // await GenerarAsientos(autobus.AutobusID, autobus.CapacidadTotal);
+
+                return CreatedAtAction(nameof(GetAutobus), new { id = autobus.AutobusID }, autobus);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error interno: {ex.Message}");
+            }
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutAutobus(int id, Autobus autobus)
+        {
+            if (id != autobus.AutobusID) return BadRequest();
+
+            _context.Entry(autobus).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!_context.Autobuses.Any(e => e.AutobusID == id)) return NotFound();
+                else throw;
+            }
+
+            return NoContent();
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Administrador")]
+        public async Task<IActionResult> DeleteAutobus(int id)
+        {
+            var autobus = await _context.Autobuses.FindAsync(id);
+            if (autobus == null) return NotFound();
+
+            // PASO 1: Buscar los IDs de los viajes futuros activos de este bus
+            // (Usamos DateTime.UtcNow para evitar problemas de zona horaria)
+            var viajesFuturosIds = await _context.Viajes
+                .Where(v => v.AutobusID == id &&
+                            v.FechaSalida > DateTime.UtcNow &&
+                            !v.IsDeleted)
+                .Select(v => v.ViajeID)
+                .ToListAsync();
+
+            // PASO 2: Verificar si alguno de esos viajes tiene boletos vendidos
+            bool hayBoletosVendidos = false;
+
+            if (viajesFuturosIds.Any())
+            {
+                hayBoletosVendidos = await _context.Boletos
+                    .AnyAsync(b => viajesFuturosIds.Contains(b.ViajeID));
+            }
+
+            // LOGS DE DEPURACIÓN (Mira esto en la consola del servidor)
+            Console.WriteLine($"[DELETE BUS] BusID: {id}");
+            Console.WriteLine($"[DELETE BUS] Viajes Futuros Encontrados: {viajesFuturosIds.Count}");
+            Console.WriteLine($"[DELETE BUS] ¿Hay boletos vendidos?: {hayBoletosVendidos}");
+
+            if (hayBoletosVendidos)
+            {
+                return BadRequest("No se puede eliminar: El autobús tiene pasajes vendidos para viajes futuros.");
+            }
+
+            // Si pasamos la validación, borramos
+            autobus.IsDeleted = true;
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        [HttpPost("{id}/restore")]
+        [Authorize(Roles = "Administrador")]
+        public async Task<IActionResult> RestoreAutobus(int id)
+        {
+            // Usamos IgnoreQueryFilters() para poder encontrar el registro "invisible"
+            var autobus = await _context.Autobuses
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(a => a.AutobusID == id);
+
+            if (autobus == null) return NotFound("El autobús no existe (ni siquiera en la papelera).");
+
+            if (!autobus.IsDeleted) return BadRequest("El autobús ya está activo.");
+
+            // RESTAURAR
+            autobus.IsDeleted = false;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Autobús restaurado correctamente." });
+        }
+
+        [HttpGet("deleted")]
+        [Authorize(Roles = "Administrador")]
+        public async Task<ActionResult<IEnumerable<Autobus>>> GetDeletedAutobuses()
+        {
+            return await _context.Autobuses
+                .IgnoreQueryFilters()
+                .Where(a => a.IsDeleted)
+                .Include(a => a.Empresa)
+                .ToListAsync();
+        }
+
+        private async Task GenerarAsientos(int autobusId, int capacidad)
+        {
+            var listaAsientos = new List<Asiento>();
+
+            for (int i = 1; i <= capacidad; i++)
+            {
+                listaAsientos.Add(new Asiento
+                {
+                    AutobusID = autobusId,
+                    NumeroAsiento = i,
+                    Piso = 1, // Por defecto piso 1
+                              // Lógica simple: Los múltiplos de 4 son pasillo, etc. (Opcional)
+                    Ubicacion = (i % 4 == 0 || i % 4 == 1) ? "Ventana" : "Pasillo"
+                });
+            }
+
+            _context.Asientos.AddRange(listaAsientos);
+            await _context.SaveChangesAsync();
+        }
+    }
+}
+
