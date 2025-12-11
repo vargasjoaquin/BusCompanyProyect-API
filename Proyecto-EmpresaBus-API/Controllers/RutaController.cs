@@ -52,6 +52,13 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 return BadRequest("El Origen o Destino especificado no existe en la base de datos de Localidades.");
             }
 
+            double lat1 = (double)origen.Latitud;
+            double lon1 = (double)origen.Longitud;
+            double lat2 = (double)destino.Latitud;
+            double lon2 = (double)destino.Longitud;
+
+            decimal distanciaCalculada = (decimal)CalcularDistanciaHaversine(lat1, lon1, lat2, lon2);
+
             var nuevaRuta = new Ruta
             {
                 NombreRuta = rutaDto.NombreRuta,
@@ -198,5 +205,22 @@ namespace Proyecto_EmpresaBus_API.Controllers
             }
             return parada;
         }
+
+        private double CalcularDistanciaHaversine(double lat1, double lon1, double lat2, double lon2)
+        {
+            if (lat1 == 0 || lat2 == 0) return 100; // Valor por defecto si no hay coordenadas cargadas
+
+            var R = 6371; // Radio de la tierra en KM
+            var dLat = ToRadians(lat2 - lat1);
+            var dLon = ToRadians(lon2 - lon1);
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                    Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
+                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            var d = R * c;
+            return d; // Retorna KM
+        }
+
+        private double ToRadians(double angle) => (Math.PI / 180) * angle;
     }
 }

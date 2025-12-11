@@ -12,6 +12,12 @@ namespace Proyecto_EmpresaBus_API.Models
         [StringLength(20)]
         public string? CodigoPostal { get; set; }
 
+        [Column(TypeName = "decimal(9, 6)")]
+        public decimal Latitud { get; set; }
+
+        [Column(TypeName = "decimal(9, 6)")]
+        public decimal Longitud { get; set; }
+
         public int ProvinciaID { get; set; }
         [ForeignKey("ProvinciaID")]
         public virtual Provincia? Provincia { get; set; }

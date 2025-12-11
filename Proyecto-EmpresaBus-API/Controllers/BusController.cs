@@ -59,6 +59,14 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 return BadRequest($"La matrícula '{autobus.Matricula}' ya existe en la base de datos {dbName}.");
             }
 
+            bool numeroExiste = await _context.Autobuses
+                    .AnyAsync(a => a.NumeroBus == autobus.NumeroBus && !a.IsDeleted);
+
+            if (numeroExiste)
+            {
+                return BadRequest($"El número de unidad '{autobus.NumeroBus}' ya existe en la flota.");
+            }
+
             autobus.Empresa = null;
             autobus.Asientos = null;
             autobus.Viajes = null;

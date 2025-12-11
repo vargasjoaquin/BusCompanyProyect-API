@@ -14,6 +14,9 @@ namespace Proyecto_EmpresaBus_API.Models
         [Required, StringLength(20)]
         public string Matricula { get; set; }
 
+        [Required]
+        public string NumeroBus { get; set; }
+
         public string? Modelo { get; set; }
         public int CapacidadTotal { get; set; }
 
