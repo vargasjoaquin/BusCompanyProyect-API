@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Proyecto_EmpresaBus_API.Data;
+using Proyecto_EmpresaBus_API.Interfaces;
 using Proyecto_EmpresaBus_API.Models;
 using Proyecto_EmpresaBus_API.Request;
 using System.IdentityModel.Tokens.Jwt;
@@ -16,11 +17,13 @@ namespace Proyecto_EmpresaBus_API.Controllers
     {
         private readonly ApiDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly IEmailService _emailService;
 
-        public AuthController(ApiDbContext context, IConfiguration configuration)
+        public AuthController(ApiDbContext context, IConfiguration configuration, IEmailService emailService)
         {
             _context = context;
             _configuration = configuration;
+            _emailService = emailService;
         }
 
         [HttpPost("register")]
@@ -45,7 +48,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
                     return BadRequest($"El email '{registerDto.Email}' ya está registrado.");
                 }
 
-                // Intentar buscar LocalidadID si envían ciudad (Lógica opcional para compatibilidad)
+                // Intentar buscar LocalidadID si envían ciudad
                 int? locId = null;
                 if (!string.IsNullOrEmpty(registerDto.Ciudad))
                 {
@@ -59,17 +62,44 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 {
                     NombreCompleto = registerDto.NombreCompleto.Trim(),
                     Email = registerDto.Email.Trim().ToLower(),
-                    PasswordHash = passwordEncriptada, // RECOMENDACIÓN: Usar BCrypt para hashear
+                    PasswordHash = passwordEncriptada,
                     Rol = !string.IsNullOrEmpty(registerDto.Rol) ? registerDto.Rol : "Pasajero",
                     FechaCreacion = DateTime.UtcNow,
                     Direccion = registerDto.Direccion,
                     Telefono = registerDto.Telefono,
-                    LocalidadID = locId // Asignamos ID si lo encontramos
-                    // Sexo y Edad se pueden agregar al modelo Usuario si los necesitas
+                    LocalidadID = locId
                 };
 
                 _context.Usuarios.Add(nuevoUsuario);
                 await _context.SaveChangesAsync();
+
+                try
+                {
+                    string asunto = "¡Bienvenido a Bux! - Registro Exitoso";
+
+                    string cuerpo = $"Hola {nuevoUsuario.NombreCompleto},\n\n" +
+                                    "Tu cuenta ha sido creada exitosamente en Bux App.\n\n" +
+                                    "Tus datos de acceso son:\n" +
+                                    $"Usuario: {nuevoUsuario.Email}\n\n" +
+                                    "Gracias por elegir viajar con nosotros.\n" +
+                                    "El equipo de Bux.";
+
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await _emailService.SendEmailAsync(nuevoUsuario.Email, asunto, cuerpo);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error enviando email en segundo plano: {ex.Message}");
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error preparando el email: {ex.Message}");
+                }
 
                 return Ok(new { Message = "Usuario registrado exitosamente" });
             }
@@ -106,7 +136,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
                         new Claim(ClaimTypes.NameIdentifier, usuario.UsuarioID.ToString()),
                         new Claim(ClaimTypes.Email, usuario.Email),
                         new Claim(ClaimTypes.Role, usuario.Rol)
-                    };
+                };
 
                 var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
                 var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

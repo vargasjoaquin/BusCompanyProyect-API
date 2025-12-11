@@ -1,8 +1,10 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer; // NECESARIO
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens; // NECESARIO
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Proyecto_EmpresaBus_API.Data;
+using Proyecto_EmpresaBus_API.Interfaces;
+using Proyecto_EmpresaBus_API.Services;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -64,6 +66,8 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
+
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 var app = builder.Build();
 
