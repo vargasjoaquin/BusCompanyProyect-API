@@ -8,7 +8,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Administrador")]
+    //[Authorize(Roles = "Administrador")]
     public class BusController : ControllerBase
     {
         private readonly ApiDbContext _context;
@@ -48,18 +48,15 @@ namespace Proyecto_EmpresaBus_API.Controllers
             Console.WriteLine($"[DEBUG] Base de Datos: {dbName}");
             Console.WriteLine($"[DEBUG] --------------------------------------------------");
 
-            // 1. Limpieza de datos (Quitar espacios en blanco al principio y final)
-            autobus.Matricula = autobus.Matricula?.Trim().ToUpper(); // Guardamos siempre en mayúsculas
+            autobus.Matricula = autobus.Matricula?.Trim().ToUpper();
             autobus.Modelo = autobus.Modelo.Trim();
 
-            // 2. Validar Empresa
             var empresaExiste = await _context.Empresas.AnyAsync(e => e.EmpresaID == autobus.EmpresaID);
             if (!empresaExiste)
             {
                 return BadRequest($"La empresa seleccionada no es válida.");
             }
 
-            // 3. Validar Matrícula (Ignorando mayúsculas/minúsculas)
             var yaExiste = await _context.Autobuses.AnyAsync(a => a.Matricula == autobus.Matricula);
 
             if (yaExiste)
@@ -68,7 +65,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 return BadRequest($"La matrícula '{autobus.Matricula}' ya existe en la base de datos {dbName}.");
             }
 
-            // 4. Limpiar relaciones para evitar errores de JSON cíclico
             autobus.Empresa = null;
             autobus.Asientos = null;
             autobus.Viajes = null;
@@ -77,10 +73,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
             {
                 _context.Autobuses.Add(autobus);
                 await _context.SaveChangesAsync();
-
-                // OPCIONAL: Generar asientos automáticamente al crear el bus
-                // await GenerarAsientos(autobus.AutobusID, autobus.CapacidadTotal);
-
                 return CreatedAtAction(nameof(GetAutobus), new { id = autobus.AutobusID }, autobus);
             }
             catch (Exception ex)
@@ -116,35 +108,16 @@ namespace Proyecto_EmpresaBus_API.Controllers
             var autobus = await _context.Autobuses.FindAsync(id);
             if (autobus == null) return NotFound();
 
-            // PASO 1: Buscar los IDs de los viajes futuros activos de este bus
-            // (Usamos DateTime.UtcNow para evitar problemas de zona horaria)
-            var viajesFuturosIds = await _context.Viajes
-                .Where(v => v.AutobusID == id &&
-                            v.FechaSalida > DateTime.UtcNow &&
-                            !v.IsDeleted)
-                .Select(v => v.ViajeID)
-                .ToListAsync();
+            bool tieneViajesProgramados = await _context.Viajes
+                .AnyAsync(v => v.AutobusID == id &&
+                               v.FechaSalida > DateTime.UtcNow && 
+                               !v.IsDeleted); 
 
-            // PASO 2: Verificar si alguno de esos viajes tiene boletos vendidos
-            bool hayBoletosVendidos = false;
-
-            if (viajesFuturosIds.Any())
+            if (tieneViajesProgramados)
             {
-                hayBoletosVendidos = await _context.Boletos
-                    .AnyAsync(b => viajesFuturosIds.Contains(b.ViajeID));
+                return BadRequest("No se puede eliminar: El autobús está asignado a viajes programados pendientes.");
             }
 
-            // LOGS DE DEPURACIÓN (Mira esto en la consola del servidor)
-            Console.WriteLine($"[DELETE BUS] BusID: {id}");
-            Console.WriteLine($"[DELETE BUS] Viajes Futuros Encontrados: {viajesFuturosIds.Count}");
-            Console.WriteLine($"[DELETE BUS] ¿Hay boletos vendidos?: {hayBoletosVendidos}");
-
-            if (hayBoletosVendidos)
-            {
-                return BadRequest("No se puede eliminar: El autobús tiene pasajes vendidos para viajes futuros.");
-            }
-
-            // Si pasamos la validación, borramos
             autobus.IsDeleted = true;
             await _context.SaveChangesAsync();
 
@@ -155,7 +128,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
         [Authorize(Roles = "Administrador")]
         public async Task<IActionResult> RestoreAutobus(int id)
         {
-            // Usamos IgnoreQueryFilters() para poder encontrar el registro "invisible"
             var autobus = await _context.Autobuses
                 .IgnoreQueryFilters()
                 .FirstOrDefaultAsync(a => a.AutobusID == id);
@@ -164,7 +136,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
             if (!autobus.IsDeleted) return BadRequest("El autobús ya está activo.");
 
-            // RESTAURAR
             autobus.IsDeleted = false;
             await _context.SaveChangesAsync();
 
@@ -192,8 +163,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 {
                     AutobusID = autobusId,
                     NumeroAsiento = i,
-                    Piso = 1, // Por defecto piso 1
-                              // Lógica simple: Los múltiplos de 4 son pasillo, etc. (Opcional)
                     Ubicacion = (i % 4 == 0 || i % 4 == 1) ? "Ventana" : "Pasillo"
                 });
             }
