@@ -15,6 +15,9 @@ namespace Proyecto_EmpresaBus_API.Models
         public DateTime FechaSalida { get; set; }
         public DateTime? FechaLlegadaEstimada { get; set; }
 
+        [StringLength(20)]
+        public string? Plataforma { get; set; }
+
         // El precio ahora está en el Viaje (no en la ruta), permitiendo precios dinámicos
         [Column(TypeName = "decimal(10, 2)")]
         public decimal PrecioBase { get; set; }

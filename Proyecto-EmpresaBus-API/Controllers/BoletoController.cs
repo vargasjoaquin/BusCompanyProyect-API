@@ -23,14 +23,12 @@ namespace Proyecto_EmpresaBus_API.Controllers
         [HttpPost]
         public async Task<ActionResult<Boleto>> ComprarBoleto(BoletoCreateDto boletoDto)
         {
-            // 1. Obtener Viaje para saber el autobús y precio
             var viaje = await _context.Viajes
                 .Include(v => v.Ruta)
                 .FirstOrDefaultAsync(v => v.ViajeID == boletoDto.ViajeID);
 
             if (viaje == null) return NotFound("Viaje no existe");
 
-            // 2. Traducir el "NumeroAsiento" que viene del DTO al "AsientoID" real de la base de datos
             var asientoFisico = await _context.Asientos
                 .FirstOrDefaultAsync(a => a.AutobusID == viaje.AutobusID && a.NumeroAsiento == boletoDto.NumeroAsiento);
 
@@ -39,7 +37,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 return BadRequest($"El asiento {boletoDto.NumeroAsiento} no existe en la configuración del autobús.");
             }
 
-            // 3. Verificar si YA está ocupado usando el ID
             bool asientoOcupado = await _context.Boletos.AnyAsync(b =>
                 b.ViajeID == boletoDto.ViajeID &&
                 b.AsientoID == asientoFisico.AsientoID);
@@ -49,15 +46,14 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 return BadRequest($"El asiento {boletoDto.NumeroAsiento} ya está ocupado.");
             }
 
-            // 4. Crear Boleto
             var nuevoBoleto = new Boleto
             {
                 ViajeID = boletoDto.ViajeID,
                 UsuarioID = boletoDto.UsuarioID,
-                AsientoID = asientoFisico.AsientoID, // ID Real
+                AsientoID = asientoFisico.AsientoID,
                 FechaCompra = DateTime.UtcNow,
                 EstadoBoleto = "Confirmado",
-                PrecioFinal = viaje.PrecioBase // Usamos el precio del viaje
+                PrecioFinal = viaje.PrecioBase
             };
 
             _context.Boletos.Add(nuevoBoleto);
@@ -71,7 +67,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
         [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<int>>> GetOcupados(int viajeId)
         {
-            // Devolvemos la lista de NÚMEROS de asiento ocupados
             var ocupados = await _context.Boletos
                 .Include(b => b.Asiento)
                 .Where(b => b.ViajeID == viajeId)
@@ -88,7 +83,10 @@ namespace Proyecto_EmpresaBus_API.Controllers
             var query = _context.Boletos
                 .Include(b => b.Viaje).ThenInclude(v => v.Ruta).ThenInclude(r => r.Origen)
                 .Include(b => b.Viaje).ThenInclude(v => v.Ruta).ThenInclude(r => r.Destino)
-                .Include(b => b.Asiento) // Para ver el número
+                .Include(b => b.Viaje).ThenInclude(v => v.Autobus).ThenInclude(a => a.Empresa)
+                .Include(b => b.Asiento)
+                .Include(b => b.Usuario)
+
                 .AsQueryable();
 
             if (usuarioId.HasValue)
@@ -96,7 +94,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 query = query.Where(b => b.UsuarioID == usuarioId.Value);
             }
 
-            var lista = await query.ToListAsync();
+            var lista = await query.OrderByDescending(b => b.FechaCompra).ToListAsync();
 
             return Ok(lista);
         }
@@ -149,7 +147,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
                 if (viaje == null) return NotFound("Viaje no encontrado");
 
-                // Buscamos los IDs de todos los asientos solicitados
                 var asientosFisicos = await _context.Asientos
                     .Where(a => a.AutobusID == viaje.AutobusID && dto.Asientos.Contains(a.NumeroAsiento))
                     .ToListAsync();
@@ -159,7 +156,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
                 var idsAsientos = asientosFisicos.Select(a => a.AsientoID).ToList();
 
-                // Verificar ocupados
                 var ocupados = await _context.Boletos
                     .Where(b => b.ViajeID == dto.ViajeID && idsAsientos.Contains(b.AsientoID))
                     .Include(b => b.Asiento)

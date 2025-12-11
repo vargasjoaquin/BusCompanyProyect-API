@@ -109,7 +109,8 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 FechaSalida = fechaSalida,
                 FechaLlegadaEstimada = fechaLlegada, // <--- GUARDAMOS EL CÁLCULO
                 PrecioBase = viajeDto.PrecioBase, // Asegúrate de tener esto en tu DTO
-                EstadoViaje = "Programado"
+                EstadoViaje = "Programado",
+                Plataforma = viajeDto.Plataforma
             };
 
             _context.Viajes.Add(nuevoViaje);

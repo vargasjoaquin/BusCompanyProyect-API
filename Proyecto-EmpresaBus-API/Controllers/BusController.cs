@@ -42,12 +42,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
             var dbName = _context.Database.GetDbConnection().Database;
             var serverName = _context.Database.GetDbConnection().DataSource;
 
-            Console.WriteLine($"[DEBUG] --------------------------------------------------");
-            Console.WriteLine($"[DEBUG] Intentando crear matrícula: '{autobus.Matricula}'");
-            Console.WriteLine($"[DEBUG] Servidor: {serverName}");
-            Console.WriteLine($"[DEBUG] Base de Datos: {dbName}");
-            Console.WriteLine($"[DEBUG] --------------------------------------------------");
-
             autobus.Matricula = autobus.Matricula?.Trim().ToUpper();
             autobus.Modelo = autobus.Modelo.Trim();
 
@@ -73,6 +67,9 @@ namespace Proyecto_EmpresaBus_API.Controllers
             {
                 _context.Autobuses.Add(autobus);
                 await _context.SaveChangesAsync();
+
+                await GenerarAsientos(autobus.AutobusID, autobus.CapacidadTotal);
+
                 return CreatedAtAction(nameof(GetAutobus), new { id = autobus.AutobusID }, autobus);
             }
             catch (Exception ex)

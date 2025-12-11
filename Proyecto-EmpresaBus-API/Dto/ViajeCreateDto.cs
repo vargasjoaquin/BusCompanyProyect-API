@@ -19,5 +19,8 @@ namespace Proyecto_EmpresaBus_API.Dto
 
         [Column(TypeName = "decimal(10, 2)")]
         public decimal PrecioBase { get; set; }
+
+        [StringLength(20)]
+        public string? Plataforma { get; set; }
     }
 }
