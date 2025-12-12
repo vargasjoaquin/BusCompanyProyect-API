@@ -30,7 +30,9 @@ namespace Proyecto_EmpresaBus_API.Controllers
             if (string.IsNullOrEmpty(idClaim)) return Unauthorized();
             var idUsuarioLogueado = int.Parse(idClaim);
 
-            IQueryable<Usuario> query = _context.Usuarios.Include(u => u.Localidad);
+            IQueryable<Usuario> query = _context.Usuarios
+            .Include(u => u.Localidad)
+            .ThenInclude(l => l.Provincia);
 
             if (rolUsuario != "Administrador")
             {
@@ -47,7 +49,12 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 Direccion = u.Direccion,
                 Telefono = u.Telefono,
                 // Mapeo seguro de la localidad
-                Ciudad = u.Localidad != null ? u.Localidad.NombreLocalidad : "No especificada"
+                Ciudad = u.Localidad != null ? u.Localidad.NombreLocalidad : "No especificada",
+                Edad = u.Edad,
+                Sexo = u.Sexo,
+                Provincia = (u.Localidad != null && u.Localidad.Provincia != null)
+                    ? u.Localidad.Provincia.NombreProvincia
+                    : ""
             }).ToListAsync();
 
             return Ok(usuariosDto);
