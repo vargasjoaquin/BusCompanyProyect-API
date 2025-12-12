@@ -27,5 +27,10 @@ namespace Proyecto_EmpresaBus_API.Models
         public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
 
         public bool IsDeleted { get; set; } = false;
+
+        public int? Edad { get; set; }
+        [StringLength(20)]
+        public string? Sexo { get; set; }
+
     }
 }

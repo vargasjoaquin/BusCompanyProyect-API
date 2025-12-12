@@ -15,5 +15,8 @@
         // En el controlador mapeamos Localidad.NombreLocalidad a esta propiedad "Ciudad"
         public string? Ciudad { get; set; }
         public string? Provincia { get; set; }
+
+        public int? Edad { get; set; }  // <--- AGREGAR
+        public string? Sexo { get; set; }
     }
 }

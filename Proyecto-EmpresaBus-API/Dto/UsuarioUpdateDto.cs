@@ -25,5 +25,7 @@ namespace Proyecto_EmpresaBus_API.Dto
         public int? Edad { get; set; }
         public string? Provincia { get; set; }
         public string? Ciudad { get; set; }
+
+
     }
 }

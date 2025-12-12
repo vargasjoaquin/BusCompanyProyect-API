@@ -52,8 +52,19 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 int? locId = null;
                 if (!string.IsNullOrEmpty(registerDto.Ciudad))
                 {
-                    var loc = await _context.Localidades.FirstOrDefaultAsync(l => l.NombreLocalidad == registerDto.Ciudad);
-                    if (loc != null) locId = loc.LocalidadID;
+                    // BUSQUEDA EXACTA: Asegúrate que coincida con lo que hay en BD
+                    var loc = await _context.Localidades
+                                            .FirstOrDefaultAsync(l => l.NombreLocalidad == registerDto.Ciudad);
+
+                    if (loc != null)
+                    {
+                        locId = loc.LocalidadID;
+                    }
+                    else
+                    {
+                        // Opcional: Loguear que no se encontró la ciudad
+                        Console.WriteLine($"[AVISO] No se encontró la localidad: {registerDto.Ciudad}");
+                    }
                 }
 
                 string passwordEncriptada = BCrypt.Net.BCrypt.HashPassword(registerDto.Password);
@@ -67,7 +78,9 @@ namespace Proyecto_EmpresaBus_API.Controllers
                     FechaCreacion = DateTime.UtcNow,
                     Direccion = registerDto.Direccion,
                     Telefono = registerDto.Telefono,
-                    LocalidadID = locId
+                    LocalidadID = locId,
+                    Edad = registerDto.Edad,
+                    Sexo = registerDto.Sexo
                 };
 
                 _context.Usuarios.Add(nuevoUsuario);

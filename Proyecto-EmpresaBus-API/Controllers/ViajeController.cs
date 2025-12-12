@@ -24,7 +24,8 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return await _context.Viajes
                                  .Include(v => v.Ruta).ThenInclude(r => r.Origen)
                                  .Include(v => v.Ruta).ThenInclude(r => r.Destino)
-                                 .Include(v => v.Autobus)
+                                 .Include(v => v.Autobus).ThenInclude(a => a.Empresa)
+                                 .Include(v => v.Boletos)
                                  .ToListAsync();
         }
 
@@ -38,7 +39,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
             var query = _context.Viajes
                                 .Include(v => v.Ruta).ThenInclude(r => r.Origen)
                                 .Include(v => v.Ruta).ThenInclude(r => r.Destino)
-                                .Include(v => v.Autobus)
+                                .Include(v => v.Autobus).ThenInclude(a => a.Empresa)
                                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(origen))

@@ -142,45 +142,78 @@ namespace Proyecto_EmpresaBus_API.Controllers
         [HttpPost("{rutaId}/actualizar-itinerario")]
         public async Task<IActionResult> ActualizarItinerario(int rutaId, [FromBody] ItinerarioDto dto)
         {
-            var ruta = await _context.Rutas.FindAsync(rutaId);
+            var ruta = await _context.Rutas
+                .Include(r => r.Origen)
+                .Include(r => r.Destino)
+                .FirstOrDefaultAsync(r => r.RutaID == rutaId);
+
             if (ruta == null) return NotFound("Ruta no encontrada");
 
-            // 1. Limpiar itinerario anterior (excepto origen y destino si quisieras, pero mejor limpiar todo y rehacer)
             var paradasAnteriores = _context.RutaParadas.Where(rp => rp.RutaID == rutaId);
             _context.RutaParadas.RemoveRange(paradasAnteriores);
+
             await _context.SaveChangesAsync();
 
-            // 2. Crear nueva lista
             var nuevasParadasRuta = new List<RutaParada>();
             int orden = 1;
 
-            // A. AGREGAR ORIGEN (Orden 1)
+            var puntosGeograficos = new List<Localidad>();
+
+            puntosGeograficos.Add(ruta.Origen);
+
             var paradaOrigen = await GetOrCreateParada(ruta.OrigenID);
             nuevasParadasRuta.Add(new RutaParada { RutaID = rutaId, ParadaID = paradaOrigen.ParadaID, Orden = orden++ });
 
-            // B. AGREGAR INTERMEDIAS
             if (dto.LocalidadesIds != null)
             {
                 foreach (var locId in dto.LocalidadesIds)
                 {
-                    // Validar que no sea ni origen ni destino para no duplicar
                     if (locId != ruta.OrigenID && locId != ruta.DestinoID)
                     {
-                        var paradaIntermedia = await GetOrCreateParada(locId);
-                        nuevasParadasRuta.Add(new RutaParada { RutaID = rutaId, ParadaID = paradaIntermedia.ParadaID, Orden = orden++ });
+                        var loc = await _context.Localidades.FindAsync(locId);
+                        if (loc != null)
+                        {
+                            puntosGeograficos.Add(loc); 
+
+                            var paradaIntermedia = await GetOrCreateParada(locId);
+                            nuevasParadasRuta.Add(new RutaParada { RutaID = rutaId, ParadaID = paradaIntermedia.ParadaID, Orden = orden++ });
+                        }
                     }
                 }
             }
 
-            // C. AGREGAR DESTINO (Último Orden)
+            puntosGeograficos.Add(ruta.Destino);
+
             var paradaDestino = await GetOrCreateParada(ruta.DestinoID);
             nuevasParadasRuta.Add(new RutaParada { RutaID = rutaId, ParadaID = paradaDestino.ParadaID, Orden = orden++ });
 
-            // 3. Guardar
             _context.RutaParadas.AddRange(nuevasParadasRuta);
+
+
+            double distanciaTotalKm = 0;
+
+            for (int i = 0; i < puntosGeograficos.Count - 1; i++)
+            {
+                var puntoA = puntosGeograficos[i];
+                var puntoB = puntosGeograficos[i + 1];
+
+                distanciaTotalKm += CalcularDistanciaHaversine(
+                    (double)puntoA.Latitud, (double)puntoA.Longitud,
+                    (double)puntoB.Latitud, (double)puntoB.Longitud
+                );
+            }
+
+            ruta.DistanciaKM = (decimal)distanciaTotalKm;
+            _context.Entry(ruta).State = EntityState.Modified;
+
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "Itinerario actualizado con éxito", TotalParadas = orden - 1 });
+            return Ok(new
+            {
+                Message = "Itinerario actualizado",
+                TotalParadas = orden - 1,
+                NuevaDistancia = Math.Round(distanciaTotalKm, 2)
+            });
         }
 
         // Método auxiliar para convertir Localidad -> Parada física

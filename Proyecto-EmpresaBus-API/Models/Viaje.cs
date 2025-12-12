@@ -15,6 +15,7 @@ namespace Proyecto_EmpresaBus_API.Models
         public DateTime FechaSalida { get; set; }
         public DateTime? FechaLlegadaEstimada { get; set; }
 
+
         [StringLength(20)]
         public string? Plataforma { get; set; }
 
@@ -29,6 +30,8 @@ namespace Proyecto_EmpresaBus_API.Models
 
         [ForeignKey("AutobusID")]
         public virtual Autobus? Autobus { get; set; }
+
+        public List<Boleto> Boletos { get; set; } = new List<Boleto>();
 
         public bool IsDeleted { get; set; } = false;
     }

@@ -57,7 +57,8 @@ namespace Proyecto_EmpresaBus_API.Controllers
         public async Task<ActionResult<UsuarioResponseDto>> GetUsuario(int id)
         {
             var usuario = await _context.Usuarios
-                .Include(u => u.Localidad)
+                .Include(u => u.Localidad)               // 1. Trae el objeto Localidad
+                    .ThenInclude(l => l.Provincia)       // 2. Trae la Provincia dentro de esa Localidad
                 .FirstOrDefaultAsync(u => u.UsuarioID == id);
 
             if (usuario == null) return NotFound();
@@ -71,7 +72,13 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 FechaCreacion = usuario.FechaCreacion,
                 Direccion = usuario.Direccion,
                 Telefono = usuario.Telefono,
-                Ciudad = usuario.Localidad?.NombreLocalidad
+                Edad = usuario.Edad,
+                Sexo = usuario.Sexo,
+
+                // 3. MAPEO MANUAL: Asignamos los nombres que vienen de las relaciones
+                // Usamos el operador '?' para evitar errores si el usuario no tiene localidad asignada
+                Ciudad = usuario.Localidad?.NombreLocalidad,
+                Provincia = usuario.Localidad?.Provincia?.NombreProvincia
             };
 
             return Ok(usuarioDto);
@@ -96,6 +103,8 @@ namespace Proyecto_EmpresaBus_API.Controllers
             usuarioEnDb.Email = usuarioDto.Email;
             usuarioEnDb.Telefono = usuarioDto.Telefono;
             usuarioEnDb.Direccion = usuarioDto.Direccion;
+            usuarioEnDb.Edad = usuarioDto.Edad;
+            usuarioEnDb.Sexo = usuarioDto.Sexo;
 
             // Intentar actualizar localidad si cambia el nombre de la ciudad
             if (!string.IsNullOrEmpty(usuarioDto.Ciudad))
