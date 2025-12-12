@@ -48,7 +48,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 FechaCreacion = u.FechaCreacion,
                 Direccion = u.Direccion,
                 Telefono = u.Telefono,
-                // Mapeo seguro de la localidad
                 Ciudad = u.Localidad != null ? u.Localidad.NombreLocalidad : "No especificada",
                 Edad = u.Edad,
                 Sexo = u.Sexo,
@@ -64,8 +63,8 @@ namespace Proyecto_EmpresaBus_API.Controllers
         public async Task<ActionResult<UsuarioResponseDto>> GetUsuario(int id)
         {
             var usuario = await _context.Usuarios
-                .Include(u => u.Localidad)               // 1. Trae el objeto Localidad
-                    .ThenInclude(l => l.Provincia)       // 2. Trae la Provincia dentro de esa Localidad
+                .Include(u => u.Localidad)              
+                    .ThenInclude(l => l.Provincia)      
                 .FirstOrDefaultAsync(u => u.UsuarioID == id);
 
             if (usuario == null) return NotFound();
@@ -81,9 +80,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 Telefono = usuario.Telefono,
                 Edad = usuario.Edad,
                 Sexo = usuario.Sexo,
-
-                // 3. MAPEO MANUAL: Asignamos los nombres que vienen de las relaciones
-                // Usamos el operador '?' para evitar errores si el usuario no tiene localidad asignada
                 Ciudad = usuario.Localidad?.NombreLocalidad,
                 Provincia = usuario.Localidad?.Provincia?.NombreProvincia
             };
@@ -99,7 +95,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
             var usuarioEnDb = await _context.Usuarios.FindAsync(id);
             if (usuarioEnDb == null) return NotFound("Usuario no encontrado.");
 
-            // Validar Email único
+            
             if (usuarioEnDb.Email.ToLower().Trim() != usuarioDto.Email.ToLower().Trim())
             {
                 bool emailOcupado = await _context.Usuarios.AnyAsync(u => u.Email == usuarioDto.Email && u.UsuarioID != id);
@@ -113,7 +109,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
             usuarioEnDb.Edad = usuarioDto.Edad;
             usuarioEnDb.Sexo = usuarioDto.Sexo;
 
-            // Intentar actualizar localidad si cambia el nombre de la ciudad
             if (!string.IsNullOrEmpty(usuarioDto.Ciudad))
             {
                 var loc = await _context.Localidades.FirstOrDefaultAsync(l => l.NombreLocalidad == usuarioDto.Ciudad);
@@ -141,7 +136,11 @@ namespace Proyecto_EmpresaBus_API.Controllers
             var usuario = await _context.Usuarios.FindAsync(id);
             if (usuario == null) return NotFound("Usuario no encontrado");
 
-            // Validar si tiene boletos para viajes que aún no ocurren
+            if (usuario.Rol == "Administrador")
+            {
+                return BadRequest("No está permitido eliminar cuentas de Administrador.");
+            }
+
             bool tieneBoletosActivos = await _context.Boletos
                 .Include(b => b.Viaje)
                 .AnyAsync(b => b.UsuarioID == id &&
@@ -152,7 +151,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
             if (tieneBoletosActivos)
             {
-                // IMPORTANTE: Devolver un mensaje de texto plano
                 return BadRequest("No se puede eliminar: El usuario tiene viajes pendientes por realizar.");
             }
 
@@ -166,7 +164,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
         [Authorize(Roles = "Administrador")] // Solo el admin puede restaurar
         public async Task<IActionResult> RestoreUsuario(int id)
         {
-            // Usamos IgnoreQueryFilters() para poder encontrar a los usuarios con IsDeleted = true
             var usuario = await _context.Usuarios
                 .IgnoreQueryFilters()
                 .FirstOrDefaultAsync(u => u.UsuarioID == id);
@@ -181,7 +178,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 return BadRequest("Este usuario ya está activo.");
             }
 
-            // Lógica de restauración
             usuario.IsDeleted = false;
 
             try
@@ -202,9 +198,9 @@ namespace Proyecto_EmpresaBus_API.Controllers
         public async Task<ActionResult<IEnumerable<UsuarioResponseDto>>> GetDeletedUsuarios()
         {
             var eliminados = await _context.Usuarios
-                .IgnoreQueryFilters()       // Ignoramos el filtro global
-                .Where(u => u.IsDeleted)    // Filtramos solo los borrados
-                .Include(u => u.Localidad)  // Incluimos datos relacionados si es necesario
+                .IgnoreQueryFilters()       
+                .Where(u => u.IsDeleted)    
+                .Include(u => u.Localidad)  
                 .Select(u => new UsuarioResponseDto
                 {
                     UsuarioID = u.UsuarioID,

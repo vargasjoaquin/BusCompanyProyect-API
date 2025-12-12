@@ -43,7 +43,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
         [HttpPost]
         public async Task<ActionResult<Ruta>> PostRuta(RutaCreateDto rutaDto)
         {
-            // Lógica de compatibilidad: Buscar ID basado en el Nombre (String) del DTO
             var origen = await _context.Localidades.FirstOrDefaultAsync(l => l.NombreLocalidad == rutaDto.Origen);
             var destino = await _context.Localidades.FirstOrDefaultAsync(l => l.NombreLocalidad == rutaDto.Destino);
 
@@ -62,8 +61,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
             var nuevaRuta = new Ruta
             {
                 NombreRuta = rutaDto.NombreRuta,
-                //Descripcion = rutaDto.Descripcion,
-                // Precio removido de Ruta, ahora está en Viaje
                 OrigenID = origen.LocalidadID,
                 DestinoID = destino.LocalidadID
             };
@@ -80,7 +77,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
             var ruta = await _context.Rutas.FindAsync(id);
             if (ruta == null) return NotFound();
 
-            // Buscar IDs nuevamente
             var origen = await _context.Localidades.FirstOrDefaultAsync(l => l.NombreLocalidad == rutaDto.Origen);
             var destino = await _context.Localidades.FirstOrDefaultAsync(l => l.NombreLocalidad == rutaDto.Destino);
 
@@ -88,7 +84,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
             if (destino != null) ruta.DestinoID = destino.LocalidadID;
 
             ruta.NombreRuta = rutaDto.NombreRuta;
-            //ruta.Descripcion = rutaDto.Descripcion;
 
             _context.Entry(ruta).State = EntityState.Modified;
 
@@ -122,8 +117,8 @@ namespace Proyecto_EmpresaBus_API.Controllers
         {
             var paradas = await _context.RutaParadas
                 .Where(rp => rp.RutaID == id)
-                .OrderBy(rp => rp.Orden) // ¡Muy importante el orden!
-                .Include(rp => rp.Parada) // Traer nombre y ubicación
+                .OrderBy(rp => rp.Orden) 
+                .Include(rp => rp.Parada) 
                 .Select(rp => new
                 {
                     Orden = rp.Orden,
@@ -216,21 +211,19 @@ namespace Proyecto_EmpresaBus_API.Controllers
             });
         }
 
-        // Método auxiliar para convertir Localidad -> Parada física
         private async Task<Parada> GetOrCreateParada(int localidadId)
         {
-            // Buscamos si ya existe una parada principal para esa localidad
             var parada = await _context.Paradas.FirstOrDefaultAsync(p => p.LocalidadID == localidadId);
 
             if (parada == null)
             {
-                // Si no existe, buscamos el nombre de la localidad y creamos una parada genérica
+                
                 var loc = await _context.Localidades.FindAsync(localidadId);
                 parada = new Parada
                 {
                     LocalidadID = localidadId,
                     NombreParada = "Terminal " + loc.NombreLocalidad,
-                    Latitud = 0, // Deberías tener coords reales, pero por ahora 0
+                    Latitud = 0, 
                     Longitud = 0
                 };
                 _context.Paradas.Add(parada);

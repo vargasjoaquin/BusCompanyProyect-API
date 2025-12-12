@@ -9,9 +9,7 @@ namespace Proyecto_EmpresaBus_API.Dto
         public int DestinoID { get; set; }
         public decimal DistanciaKM { get; set; }
 
-        public string? Origen { get; set; }  // AGREGADO
-        public string? Destino { get; set; } // AGREGADO
-
-        //public string? Descripcion { get; set; }
+        public string? Origen { get; set; }  
+        public string? Destino { get; set; } 
     }
 }

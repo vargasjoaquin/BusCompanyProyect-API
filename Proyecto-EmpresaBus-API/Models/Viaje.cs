@@ -11,7 +11,6 @@ namespace Proyecto_EmpresaBus_API.Models
         public int RutaID { get; set; }
         public int AutobusID { get; set; }
 
-        // En la nueva BBDD unimos Fecha y Hora en una sola columna
         public DateTime FechaSalida { get; set; }
         public DateTime? FechaLlegadaEstimada { get; set; }
 
@@ -19,7 +18,6 @@ namespace Proyecto_EmpresaBus_API.Models
         [StringLength(20)]
         public string? Plataforma { get; set; }
 
-        // El precio ahora está en el Viaje (no en la ruta), permitiendo precios dinámicos
         [Column(TypeName = "decimal(10, 2)")]
         public decimal PrecioBase { get; set; }
 

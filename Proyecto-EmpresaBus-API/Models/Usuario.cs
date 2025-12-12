@@ -19,7 +19,6 @@ namespace Proyecto_EmpresaBus_API.Models
         public string? Telefono { get; set; }
         public string? Direccion { get; set; }
 
-        // Relación Geográfica
         public int? LocalidadID { get; set; }
         [ForeignKey("LocalidadID")]
         public virtual Localidad? Localidad { get; set; }

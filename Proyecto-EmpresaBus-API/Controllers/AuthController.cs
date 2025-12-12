@@ -48,11 +48,9 @@ namespace Proyecto_EmpresaBus_API.Controllers
                     return BadRequest($"El email '{registerDto.Email}' ya está registrado.");
                 }
 
-                // Intentar buscar LocalidadID si envían ciudad
                 int? locId = null;
                 if (!string.IsNullOrEmpty(registerDto.Ciudad))
                 {
-                    // BUSQUEDA EXACTA: Asegúrate que coincida con lo que hay en BD
                     var loc = await _context.Localidades
                                             .FirstOrDefaultAsync(l => l.NombreLocalidad == registerDto.Ciudad);
 
@@ -62,7 +60,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
                     }
                     else
                     {
-                        // Opcional: Loguear que no se encontró la ciudad
                         Console.WriteLine($"[AVISO] No se encontró la localidad: {registerDto.Ciudad}");
                     }
                 }

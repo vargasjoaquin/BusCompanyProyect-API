@@ -12,10 +12,10 @@ namespace Proyecto_EmpresaBus_API.Models
         public int NumeroAsiento { get; set; }
         public int Piso { get; set; } = 1;
         [Required, StringLength(20)]
-        public string Ubicacion { get; set; } // Ventana, Pasillo
+        public string Ubicacion { get; set; } 
 
         [ForeignKey("AutobusID")]
-        [JsonIgnore] // Evitar ciclos
+        [JsonIgnore] 
         public virtual Autobus? Autobus { get; set; }
     }
 }

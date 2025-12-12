@@ -27,21 +27,18 @@ public class ApiDbContext : DbContext
 
         base.OnModelCreating(modelBuilder);
 
-        // Clave compuesta para RutaParada
         modelBuilder.Entity<RutaParada>()
             .HasKey(rp => new { rp.RutaID, rp.ParadaID });
 
-        // Uniqueness constraints (Restricciones únicas)
-
-        // Un asiento físico no puede repetirse en el mismo bus (Ej: Bus 1 solo tiene un asiento "4")
+        
         modelBuilder.Entity<Asiento>()
             .HasIndex(a => new { a.AutobusID, a.NumeroAsiento }).IsUnique();
 
-        // Un asiento no puede venderse dos veces para el mismo viaje
+        
         modelBuilder.Entity<Boleto>()
             .HasIndex(b => new { b.ViajeID, b.AsientoID }).IsUnique();
 
-        // Evitar borrado en cascada peligroso en rutas
+       
         modelBuilder.Entity<Ruta>()
             .HasOne(r => r.Origen)
             .WithMany()

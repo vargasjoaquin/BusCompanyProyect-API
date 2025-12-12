@@ -80,15 +80,12 @@ namespace Proyecto_EmpresaBus_API.Controllers
         [HttpPost]
         public async Task<ActionResult<Viaje>> PostViaje(ViajeCreateDto viajeDto)
         {
-            // 1. Validaciones existentes...
             var ruta = await _context.Rutas.FirstOrDefaultAsync(r => r.RutaID == viajeDto.RutaID);
             if (ruta == null) return BadRequest("La RutaID no existe.");
 
             var autobusExiste = await _context.Autobuses.AnyAsync(a => a.AutobusID == viajeDto.AutobusID);
             if (!autobusExiste) return BadRequest("El AutobusID no existe.");
 
-            // 2. LÓGICA DE CÁLCULO DE TIEMPO REAL
-            // Velocidad promedio estimada (puedes ajustarla, ej: 80 o 90 km/h)
             double velocidadPromedioKmH = 90.0;
 
             // Obtenemos distancia. Si es 0 o null, asumimos 1 hora por defecto para no romper
@@ -108,8 +105,8 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 RutaID = viajeDto.RutaID,
                 AutobusID = viajeDto.AutobusID,
                 FechaSalida = fechaSalida,
-                FechaLlegadaEstimada = fechaLlegada, // <--- GUARDAMOS EL CÁLCULO
-                PrecioBase = viajeDto.PrecioBase, // Asegúrate de tener esto en tu DTO
+                FechaLlegadaEstimada = fechaLlegada, 
+                PrecioBase = viajeDto.PrecioBase, 
                 EstadoViaje = "Programado",
                 Plataforma = viajeDto.Plataforma
             };
@@ -142,8 +139,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
             var viaje = await _context.Viajes.FindAsync(id);
             if (viaje == null) return NotFound();
 
-            // VALIDACIÓN: Chequear si hay boletos vendidos
-            // Boletos no suele tener SoftDelete, así que AnyAsync directo funciona bien.
             bool tienePasajeros = await _context.Boletos.AnyAsync(b => b.ViajeID == id);
 
             if (tienePasajeros)
@@ -163,7 +158,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
             var viaje = await _context.Viajes.IgnoreQueryFilters().FirstOrDefaultAsync(v => v.ViajeID == id);
             if (viaje == null) return NotFound();
 
-            viaje.IsDeleted = false; // Restaurar
+            viaje.IsDeleted = false; 
             await _context.SaveChangesAsync();
             return Ok();
         }
@@ -172,7 +167,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
         [Authorize(Roles = "Administrador")]
         public async Task<ActionResult<IEnumerable<Viaje>>> GetDeletedViajes()
         {
-            // IMPORTANTE: IgnoreQueryFilters() es vital para ver los IsDeleted=true
             return await _context.Viajes
                 .IgnoreQueryFilters()
                 .Where(v => v.IsDeleted)

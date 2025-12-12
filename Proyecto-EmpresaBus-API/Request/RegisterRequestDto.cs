@@ -6,8 +6,6 @@
         public string Email { get; set; }
         public string Password { get; set; }
         public string Rol { get; set; }
-        // Datos geográficos ahora son ID
-
         public string? Ciudad { get; set; }
         public int? LocalidadID { get; set; }
         public string? Direccion { get; set; }

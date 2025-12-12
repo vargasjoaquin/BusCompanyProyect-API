@@ -9,7 +9,7 @@ namespace Proyecto_EmpresaBus_API.Models
         [Key]
         public int AutobusID { get; set; }
 
-        public int EmpresaID { get; set; } // Nuevo campo
+        public int EmpresaID { get; set; } 
 
         [Required, StringLength(20)]
         public string Matricula { get; set; }

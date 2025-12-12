@@ -10,13 +10,6 @@ namespace Proyecto_EmpresaBus_API.Models
 
         [Required, StringLength(100)]
         public string NombreRuta { get; set; }
-
-        // El precio se eliminó de aquí porque ahora está en Viaje
-        // public decimal Precio { get; set; } <--- ELIMINADO
-
-        //public string? Descripcion { get; set; }
-
-        // Ahora usamos IDs para origen y destino
         public int OrigenID { get; set; }
         public int DestinoID { get; set; }
 
