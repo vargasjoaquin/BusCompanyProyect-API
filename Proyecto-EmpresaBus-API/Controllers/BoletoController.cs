@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Proyecto_EmpresaBus_API.Data;
 using Proyecto_EmpresaBus_API.Dto;
+using Proyecto_EmpresaBus_API.Interfaces;
 using Proyecto_EmpresaBus_API.Models;
 
 namespace Proyecto_EmpresaBus_API.Controllers
@@ -13,10 +14,12 @@ namespace Proyecto_EmpresaBus_API.Controllers
     public class BoletoController : ControllerBase
     {
         private readonly ApiDbContext _context;
+        private readonly IEmailService _emailService;
 
-        public BoletoController(ApiDbContext context)
+        public BoletoController(ApiDbContext context, IEmailService emailService)
         {
             _context = context;
+            _emailService = emailService;
         }
 
         // POST: api/Boleto
@@ -167,7 +170,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 }
 
                 var nuevosBoletos = new List<Boleto>();
-
                 foreach (var asiento in asientosFisicos)
                 {
                     nuevosBoletos.Add(new Boleto
@@ -185,6 +187,48 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 await _context.SaveChangesAsync();
 
                 await transaction.CommitAsync();
+
+                try
+                {
+                    var datosCompletos = await _context.Viajes
+                        .Include(v => v.Ruta).ThenInclude(r => r.Origen)
+                        .Include(v => v.Ruta).ThenInclude(r => r.Destino)
+                        .Include(v => v.Autobus).ThenInclude(a => a.Empresa)
+                        .FirstOrDefaultAsync(v => v.ViajeID == dto.ViajeID);
+
+                    var usuario = await _context.Usuarios.FindAsync(dto.UsuarioID);
+
+                    if (datosCompletos != null && usuario != null)
+                    {
+                        decimal total = datosCompletos.PrecioBase * dto.Asientos.Count;
+
+                        byte[] pdfBytes = Proyecto_EmpresaBus_API.Helpers.PdfGenerator.GenerarTicketPdf(datosCompletos, usuario, dto.Asientos, total);
+
+                        string nombreArchivo = $"Ticket_Bux_{datosCompletos.ViajeID}.pdf";
+
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await _emailService.SendEmailAsync(
+                                    usuario.Email,
+                                    "¡Tu viaje está confirmado! - Bux App",
+                                    $"Hola {usuario.NombreCompleto},\n\nGracias por tu compra. Adjuntamos tu ticket de viaje en formato PDF.\n\n¡Buen viaje!",
+                                    pdfBytes,
+                                    nombreArchivo
+                                );
+                            }
+                            catch (Exception exEmail)
+                            {
+                                Console.WriteLine($"Error enviando email en background: {exEmail.Message}");
+                            }
+                        });
+                    }
+                }
+                catch (Exception exPdf)
+                {
+                    Console.WriteLine($"Error generando PDF o preparando envío: {exPdf.Message}");
+                }
 
                 return Ok(new { Message = $"Se compraron {nuevosBoletos.Count} boletos exitosamente." });
             }

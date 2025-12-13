@@ -13,31 +13,34 @@ namespace Proyecto_EmpresaBus_API.Services
             _configuration = configuration;
         }
 
-        public async Task SendEmailAsync(string destinatario, string asunto, string cuerpo)
+        public async Task SendEmailAsync(string destinatario, string asunto, string mensaje, byte[]? archivoAdjunto = null, string nombreArchivo = null)
         {
             var smtpServer = _configuration["EmailSettings:SmtpServer"];
             var smtpPort = int.Parse(_configuration["EmailSettings:Port"]);
-            var smtpUser = _configuration["EmailSettings:SenderEmail"]; 
+            var smtpUser = _configuration["EmailSettings:SenderEmail"];
             var smtpPass = _configuration["EmailSettings:Password"];
 
-            var message = new MimeMessage();
-            message.From.Add(new MailboxAddress("Bux App", smtpUser));
-            message.To.Add(new MailboxAddress(destinatario, destinatario));
-            message.Subject = asunto;
+            var email = new MimeMessage();
+            email.From.Add(new MailboxAddress("Bux App", smtpUser));
+            email.To.Add(new MailboxAddress(destinatario, destinatario));
+            email.Subject = asunto;
 
-            message.Body = new TextPart("plain")
+            var builder = new BodyBuilder();
+
+            builder.TextBody = mensaje;
+
+            if (archivoAdjunto != null && !string.IsNullOrEmpty(nombreArchivo))
             {
-                Text = cuerpo
-            };
+                builder.Attachments.Add(nombreArchivo, archivoAdjunto);
+            }
+
+            email.Body = builder.ToMessageBody();
 
             using (var client = new SmtpClient())
             {
                 await client.ConnectAsync(smtpServer, smtpPort, MailKit.Security.SecureSocketOptions.StartTls);
-
                 await client.AuthenticateAsync(smtpUser, smtpPass);
-
-                await client.SendAsync(message);
-
+                await client.SendAsync(email);
                 await client.DisconnectAsync(true);
             }
         }

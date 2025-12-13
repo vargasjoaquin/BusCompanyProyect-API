@@ -5,8 +5,10 @@ using Microsoft.OpenApi.Models;
 using Proyecto_EmpresaBus_API.Data;
 using Proyecto_EmpresaBus_API.Interfaces;
 using Proyecto_EmpresaBus_API.Services;
-using Microsoft.AspNetCore.StaticFiles;
+using QuestPDF.Infrastructure;
 using System.Text;
+
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
