@@ -5,6 +5,7 @@ using Microsoft.OpenApi.Models;
 using Proyecto_EmpresaBus_API.Data;
 using Proyecto_EmpresaBus_API.Interfaces;
 using Proyecto_EmpresaBus_API.Services;
+using Microsoft.AspNetCore.StaticFiles;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -71,11 +72,11 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
+//if (app.Environment.IsDevelopment())
+//{
     app.UseSwagger();
     app.UseSwaggerUI();
-}
+//}
 
 app.UseAuthentication(); 
 app.UseAuthorization();
