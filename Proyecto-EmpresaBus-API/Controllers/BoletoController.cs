@@ -107,7 +107,15 @@ namespace Proyecto_EmpresaBus_API.Controllers
         public async Task<ActionResult<Boleto>> GetBoleto(int id)
         {
             var boleto = await _context.Boletos
-                .Include(b => b.Viaje).ThenInclude(v => v.Ruta)
+                .Include(b => b.Viaje)
+                    .ThenInclude(v => v.Ruta)
+                        .ThenInclude(r => r.Origen)
+                .Include(b => b.Viaje)
+                    .ThenInclude(v => v.Ruta)
+                        .ThenInclude(r => r.Destino)
+                .Include(b => b.Viaje)
+                    .ThenInclude(v => v.Autobus)
+                        .ThenInclude(a => a.Empresa)
                 .Include(b => b.Asiento)
                 .Include(b => b.Usuario)
                 .FirstOrDefaultAsync(b => b.BoletoID == id);

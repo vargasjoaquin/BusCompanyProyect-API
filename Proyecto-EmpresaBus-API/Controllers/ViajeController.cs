@@ -67,10 +67,10 @@ namespace Proyecto_EmpresaBus_API.Controllers
         public async Task<ActionResult<Viaje>> GetViaje(int id)
         {
             var viaje = await _context.Viajes
-                                      .Include(v => v.Ruta).ThenInclude(r => r.Origen)
-                                      .Include(v => v.Ruta).ThenInclude(r => r.Destino)
-                                      .Include(v => v.Autobus)
-                                      .FirstOrDefaultAsync(v => v.ViajeID == id);
+                .Include(v => v.Ruta).ThenInclude(r => r.Origen)
+                .Include(v => v.Ruta).ThenInclude(r => r.Destino)
+                .Include(v => v.Autobus).ThenInclude(a => a.Empresa)
+                .FirstOrDefaultAsync(v => v.ViajeID == id);
 
             if (viaje == null) return NotFound();
 
