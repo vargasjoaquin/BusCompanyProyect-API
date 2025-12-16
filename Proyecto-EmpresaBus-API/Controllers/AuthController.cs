@@ -48,6 +48,14 @@ namespace Proyecto_EmpresaBus_API.Controllers
                     return BadRequest($"El email '{registerDto.Email}' ya está registrado.");
                 }
 
+                var dniExistente = await _context.Usuarios
+                                     .FirstOrDefaultAsync(u => u.DNI == registerDto.DNI);
+
+                if (dniExistente != null)
+                {
+                    return BadRequest($"El DNI '{registerDto.DNI}' ya pertenece a otro usuario.");
+                }
+
                 int? locId = null;
                 if (!string.IsNullOrEmpty(registerDto.Ciudad))
                 {
