@@ -15,6 +15,8 @@ namespace Proyecto_EmpresaBus_API.Dto
         [StringLength(100, MinimumLength = 1)] 
         public string? Password { get; set; }
 
+        public string DNI { get; set; }
+
         [Required]
         public string Rol { get; set; }
 

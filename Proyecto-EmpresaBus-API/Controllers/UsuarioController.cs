@@ -104,6 +104,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
             usuarioEnDb.NombreCompleto = usuarioDto.NombreCompleto;
             usuarioEnDb.Email = usuarioDto.Email;
+            usuarioEnDb.DNI = usuarioDto.DNI;
             usuarioEnDb.Telefono = usuarioDto.Telefono;
             usuarioEnDb.Direccion = usuarioDto.Direccion;
             usuarioEnDb.Edad = usuarioDto.Edad;

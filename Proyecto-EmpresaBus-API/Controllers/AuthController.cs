@@ -71,6 +71,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
                     NombreCompleto = registerDto.NombreCompleto.Trim(),
                     Email = registerDto.Email.Trim().ToLower(),
                     PasswordHash = passwordEncriptada,
+                    DNI = registerDto.DNI,
                     Rol = !string.IsNullOrEmpty(registerDto.Rol) ? registerDto.Rol : "Pasajero",
                     FechaCreacion = DateTime.UtcNow,
                     Direccion = registerDto.Direccion,

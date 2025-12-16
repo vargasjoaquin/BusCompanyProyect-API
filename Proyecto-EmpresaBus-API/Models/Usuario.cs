@@ -14,6 +14,8 @@ namespace Proyecto_EmpresaBus_API.Models
         public string Email { get; set; }
         [Required]
         public string PasswordHash { get; set; }
+        [StringLength(20)]
+        public string DNI { get; set; }
         [Required, StringLength(50)]
         public string Rol { get; set; }
         public string? Telefono { get; set; }
