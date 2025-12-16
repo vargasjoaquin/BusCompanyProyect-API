@@ -13,83 +13,104 @@ namespace Proyecto_EmpresaBus_API.Helpers
             {
                 container.Page(page =>
                 {
-                    page.Size(PageSizes.A5);
+                    page.Size(PageSizes.A4);
                     page.Margin(1, Unit.Centimetre);
                     page.PageColor(Colors.White);
-                    page.DefaultTextStyle(x => x.FontSize(10).FontColor(Colors.Black));
+                    page.DefaultTextStyle(x => x.FontFamily(Fonts.Arial).FontSize(9).FontColor(Colors.Black));
 
-                    page.Header().Row(row =>
+                    page.Content().Column(col =>
                     {
-                        row.RelativeItem().Column(col =>
+                        col.Item().Element(c => DiseñarTalon(c, viaje, usuario, asientos, total, "Talón para el Chofer/Transportista"));
+
+                        col.Item().PaddingVertical(15).Row(row =>
                         {
-                            col.Item().Text("BUX APP").FontSize(20).SemiBold().FontColor(Colors.Blue.Medium);
-                            col.Item().Text("Ticket de Viaje Electrónico").FontSize(10).FontColor(Colors.Grey.Medium);
-                        });
-                        row.ConstantItem(50).Text("🎫").FontSize(30);
-                    });
+                            row.RelativeItem().PaddingTop(5).LineHorizontal(1).LineColor(Colors.Grey.Medium);
 
-                    page.Content().PaddingVertical(10).Column(col =>
-                    {
-                        col.Item().Text($"Código de Viaje: #{viaje.ViajeID}").Bold();
-                        col.Item().Text($"Fecha Emisión: {DateTime.Now:dd/MM/yyyy}");
+                            row.ConstantItem(100).AlignCenter().Text(" CORTE AQUÍ (✂) ").FontSize(8).FontColor(Colors.Grey.Darken2);
 
-                        col.Item().PaddingVertical(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
-
-                        col.Item().Text("TITULAR DE LA RESERVA").FontSize(12).SemiBold().FontColor(Colors.Blue.Medium);
-                        col.Item().Text($"Nombre: {usuario.NombreCompleto}");
-                        col.Item().Text($"Email: {usuario.Email}");
-
-                        col.Item().PaddingVertical(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
-
-                        col.Item().Text("DETALLES DEL SERVICIO").FontSize(12).SemiBold().FontColor(Colors.Blue.Medium);
-                        col.Item().Text($"Empresa: {viaje.Autobus?.Empresa?.NombreEmpresa ?? "Partner"}").Bold();
-                        col.Item().Text($"Unidad: {viaje.Autobus?.NumeroBus} - {viaje.Autobus?.Modelo}");
-                        col.Item().Text($"Plataforma: {viaje.Plataforma ?? "A confirmar"}");
-
-                        col.Item().PaddingTop(10).Row(row =>
-                        {
-                            row.RelativeItem().Column(c => {
-                                c.Item().Text("ORIGEN").FontSize(8).FontColor(Colors.Grey.Darken2);
-                                c.Item().Text(viaje.Ruta.Origen.NombreLocalidad).FontSize(14).Bold();
-                                c.Item().Text(viaje.FechaSalida.ToString("HH:mm") + " hs").FontSize(12).SemiBold();
-                                c.Item().Text(viaje.FechaSalida.ToString("dd/MM/yyyy"));
-                            });
-
-                            row.ConstantItem(20).AlignCenter().Text("➔").FontSize(16).FontColor(Colors.Grey.Medium);
-
-                            row.RelativeItem().Column(c => {
-                                c.Item().AlignRight().Text("DESTINO").FontSize(8).FontColor(Colors.Grey.Darken2);
-                                c.Item().AlignRight().Text(viaje.Ruta.Destino.NombreLocalidad).FontSize(14).Bold();
-                                if (viaje.FechaLlegadaEstimada.HasValue)
-                                {
-                                    c.Item().AlignRight().Text(viaje.FechaLlegadaEstimada.Value.ToString("HH:mm") + " hs").FontSize(12).SemiBold();
-                                    c.Item().AlignRight().Text(viaje.FechaLlegadaEstimada.Value.ToString("dd/MM/yyyy"));
-                                }
-                            });
+                            row.RelativeItem().PaddingTop(5).LineHorizontal(1).LineColor(Colors.Grey.Medium);
                         });
 
-                        col.Item().PaddingVertical(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
-
-                        col.Item().Background(Colors.Grey.Lighten4).Padding(10).Row(row =>
-                        {
-                            row.RelativeItem().Column(c => {
-                                c.Item().Text("Asientos").FontSize(10);
-                                c.Item().Text(string.Join(", ", asientos)).FontSize(16).Bold();
-                            });
-                            row.RelativeItem().AlignRight().Column(c => {
-                                c.Item().AlignRight().Text("Total Pagado").FontSize(10);
-                                c.Item().AlignRight().Text($"${total:N2}").FontSize(18).Bold().FontColor(Colors.Green.Darken2);
-                            });
-                        });
-                    });
-
-                    page.Footer().AlignCenter().Text(x =>
-                    {
-                        x.Span("Gracias por viajar con nosotros. ");
-                        x.Span("Bux App").Bold();
+                        col.Item().Element(c => DiseñarTalon(c, viaje, usuario, asientos, total, "Talón para el Pasajero"));
                     });
                 });
             }).GeneratePdf();
+        }
+
+        private static void DiseñarTalon(IContainer container, Viaje viaje, Usuario usuario, List<int> asientos, decimal total, string tipoTalon)
+        {
+            container.Column(col =>
+            {
+                col.Item().PaddingBottom(5).Row(row =>
+                {
+                    row.RelativeItem().Text(viaje.Autobus?.Empresa?.NombreEmpresa ?? "BUX TRANSPORTES S.A.").Bold().FontSize(12);
+                    row.RelativeItem().AlignRight().Text($"--- {tipoTalon} ---").Italic().FontSize(9);
+                });
+
+                col.Item().BorderBottom(1).BorderColor(Colors.Black);
+
+                col.Item().PaddingVertical(5).Row(row =>
+                {
+                    row.RelativeItem().Column(c =>
+                    {
+                        c.Item().Text(t => { t.Span("Boleto Nro: ").Bold(); t.Span($"#{viaje.ViajeID:D8}"); });
+                        c.Item().Text(t => { t.Span("Origen: ").Bold(); t.Span(viaje.Ruta.Origen.NombreLocalidad); });
+                    });
+
+                    row.RelativeItem().Column(c =>
+                    {
+                        c.Item().Text(t => { t.Span("Butaca: ").Bold(); t.Span(string.Join(", ", asientos)).FontSize(11).Bold(); });
+                        c.Item().Text(t => { t.Span("Plataforma: ").Bold(); t.Span(viaje.Plataforma ?? "Conf."); });
+                    });
+
+                    row.RelativeItem().AlignRight().Column(c =>
+                    {
+                        c.Item().Text(t => { t.Span("Salida: ").Bold(); t.Span(viaje.FechaSalida.ToString("dddd - dd/MM/yyyy HH:mm")); });
+                        c.Item().Text(t => { t.Span("Destino: ").Bold(); t.Span(viaje.Ruta.Destino.NombreLocalidad); });
+                    });
+                });
+
+                col.Item().BorderBottom(1).BorderColor(Colors.Black);
+
+                col.Item().PaddingTop(5).Text("Ud. viaja por: " + (viaje.Autobus?.Empresa?.NombreEmpresa ?? "Bux App")).FontSize(14).Bold();
+
+                col.Item().PaddingVertical(5).Row(row =>
+                {
+                    row.RelativeItem().Column(c =>
+                    {
+                        c.Item().Text($"Se anuncia a: {viaje.Ruta.Destino.NombreLocalidad.ToUpper()}");
+                        c.Item().Text($"Arribo Estimado: {viaje.FechaLlegadaEstimada?.ToString("dd/MM/yyyy HH:mm") ?? "-"}");
+                    });
+                });
+
+                col.Item().PaddingVertical(2).Text(t =>
+                {
+                    t.Span("Pasajero: ").Bold();
+                    t.Span($"{usuario.NombreCompleto.ToUpper()} - DNI: {usuario.DNI ?? "N/A"}");
+                });
+
+                col.Item().PaddingVertical(5).Row(row =>
+                {
+                    row.RelativeItem().Text($"Vendedor: BUX-WEB - {DateTime.Now:dd/MM/yyyy HH:mm}");
+
+                    row.ConstantItem(200).AlignRight().Column(c => {
+                        c.Item().AlignRight().Text($"Importe $ {total:N2}").FontSize(14).Bold();
+                        c.Item().AlignRight().Text("Ref: WEB-" + Guid.NewGuid().ToString().Substring(0, 8).ToUpper()).FontSize(7);
+                    });
+                });
+
+                col.Item().PaddingVertical(5).LineHorizontal(1).LineColor(Colors.Black);
+                col.Item().AlignCenter().Text("Conserve este talón para su control").FontSize(7).Italic();
+
+                col.Item().PaddingTop(5).Column(c =>
+                {
+                    c.Item().Text(viaje.Autobus?.Empresa?.NombreEmpresa ?? "BUX TRANSPORTES S.A.").Bold();
+                    c.Item().Text("Domicilio Comercial: Av. Siempre Viva 742 - C.A.B.A").FontSize(7);
+                    c.Item().Text("Atención al Cliente: 0800-BUX-VIAJE").FontSize(7);
+                });
+
+                col.Item().PaddingTop(5).BorderBottom(2).BorderColor(Colors.Black);
+            });
         }
     }
 }
