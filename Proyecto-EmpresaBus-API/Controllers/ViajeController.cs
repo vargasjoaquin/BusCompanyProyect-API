@@ -34,7 +34,8 @@ namespace Proyecto_EmpresaBus_API.Controllers
         public async Task<ActionResult<IEnumerable<Viaje>>> BuscarViajes(
                                                                         [FromQuery] string? origen,
                                                                         [FromQuery] string? destino,
-                                                                        [FromQuery] DateTime? fecha)
+                                                                        [FromQuery] DateTime? fecha,
+                                                                        [FromQuery] int? empresaId)
         {
             var query = _context.Viajes
                                 .Include(v => v.Ruta).ThenInclude(r => r.Origen)
@@ -60,6 +61,12 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 query = query.Where(v => v.FechaSalida.Date == f);
             }
 
+            // Filtrar por Empresa (Mejora solicitada)
+            if (empresaId.HasValue && empresaId > 0)
+            {
+                query = query.Where(v => v.Autobus.EmpresaID == empresaId.Value);
+            }
+
             return await query.ToListAsync();
         }
 
@@ -83,32 +90,25 @@ namespace Proyecto_EmpresaBus_API.Controllers
             var ruta = await _context.Rutas.FirstOrDefaultAsync(r => r.RutaID == viajeDto.RutaID);
             if (ruta == null) return BadRequest("La RutaID no existe.");
 
-            var autobusExiste = await _context.Autobuses.AnyAsync(a => a.AutobusID == viajeDto.AutobusID);
-            if (!autobusExiste) return BadRequest("El AutobusID no existe.");
-
-            double velocidadPromedioKmH = 90.0;
-
-            // Obtenemos distancia. Si es 0 o null, asumimos 1 hora por defecto para no romper
+            var autobus = await _context.Autobuses.FirstOrDefaultAsync(a => a.AutobusID == viajeDto.AutobusID);
+            if (autobus == null) return BadRequest("El AutobusID no existe.");
             double distancia = (double)ruta.DistanciaKM;
-            if (distancia <= 0) distancia = 90; // Fallback
+            if (distancia <= 0) distancia = 100; 
 
-            double horasDuracion = distancia / velocidadPromedioKmH;
-
-            // Calculamos Fecha Salida combinada
+            double tiempoDeViajeHoras = (distancia / 80.0) + 0.5;
             DateTime fechaSalida = viajeDto.FechaViaje.Date + viajeDto.HoraSalida.TimeOfDay;
-
-            // Calculamos Fecha Llegada (Salida + Duracion)
-            DateTime fechaLlegada = fechaSalida.AddHours(horasDuracion);
+            DateTime fechaLlegada = fechaSalida.AddHours(tiempoDeViajeHoras);
 
             var nuevoViaje = new Viaje
             {
                 RutaID = viajeDto.RutaID,
                 AutobusID = viajeDto.AutobusID,
                 FechaSalida = fechaSalida,
-                FechaLlegadaEstimada = fechaLlegada, 
-                PrecioBase = viajeDto.PrecioBase, 
+                FechaLlegadaEstimada = fechaLlegada,
+                PrecioBase = viajeDto.PrecioBase,
                 EstadoViaje = "Programado",
-                Plataforma = viajeDto.Plataforma
+                Plataforma = viajeDto.Plataforma,
+                IsDeleted = false
             };
 
             _context.Viajes.Add(nuevoViaje);
