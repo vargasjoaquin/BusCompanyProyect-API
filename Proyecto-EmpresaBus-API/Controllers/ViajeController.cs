@@ -85,11 +85,21 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
             var autobus = await _context.Autobuses.FirstOrDefaultAsync(a => a.AutobusID == viajeDto.AutobusID);
             if (autobus == null) return BadRequest("El AutobusID no existe.");
+
+            DateTime fechaSalida = viajeDto.FechaViaje.Date + viajeDto.HoraSalida.TimeOfDay;
+
+            bool plataformaOcupada = await _context.Viajes.AnyAsync(v =>
+                v.Plataforma == viajeDto.Plataforma &&
+                v.FechaSalida == fechaSalida &&
+                !v.IsDeleted);
+
+            if (plataformaOcupada)
+                return BadRequest($"La plataforma {viajeDto.Plataforma} ya se encuentra ocupada por otra unidad en el horario {fechaSalida:HH:mm}.");
+
             double distancia = (double)ruta.DistanciaKM;
-            if (distancia <= 0) distancia = 100; 
+            if (distancia <= 0) distancia = 100;
 
             double tiempoDeViajeHoras = (distancia / 80.0) + 0.5;
-            DateTime fechaSalida = viajeDto.FechaViaje.Date + viajeDto.HoraSalida.TimeOfDay;
             DateTime fechaLlegada = fechaSalida.AddHours(tiempoDeViajeHoras);
 
             var nuevoViaje = new Viaje
