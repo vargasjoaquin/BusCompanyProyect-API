@@ -38,34 +38,27 @@ namespace Proyecto_EmpresaBus_API.Controllers
                                                                         [FromQuery] int? empresaId)
         {
             var query = _context.Viajes
-                                .Include(v => v.Ruta).ThenInclude(r => r.Origen)
-                                .Include(v => v.Ruta).ThenInclude(r => r.Destino)
+                                .Include(v => v.Ruta).ThenInclude(r => r.Origen).ThenInclude(o => o.Provincia)
+                                .Include(v => v.Ruta).ThenInclude(r => r.Destino).ThenInclude(d => d.Provincia)
                                 .Include(v => v.Autobus).ThenInclude(a => a.Empresa)
                                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(origen))
             {
-                var origenBuscado = origen.Trim().ToLower();
-                query = query.Where(v => v.Ruta.Origen.NombreLocalidad.ToLower().Contains(origenBuscado));
+                var filtro = origen.Trim().ToLower();
+                query = query.Where(v => v.Ruta.Origen.NombreLocalidad.ToLower().Contains(filtro) ||
+                                         v.Ruta.Origen.Provincia.NombreProvincia.ToLower().Contains(filtro));
             }
 
             if (!string.IsNullOrWhiteSpace(destino))
             {
-                var destinoBuscado = destino.Trim().ToLower();
-                query = query.Where(v => v.Ruta.Destino.NombreLocalidad.ToLower().Contains(destinoBuscado));
+                var filtro = destino.Trim().ToLower();
+                query = query.Where(v => v.Ruta.Destino.NombreLocalidad.ToLower().Contains(filtro) ||
+                                         v.Ruta.Destino.Provincia.NombreProvincia.ToLower().Contains(filtro));
             }
 
-            if (fecha.HasValue)
-            {
-                var f = fecha.Value.Date;
-                query = query.Where(v => v.FechaSalida.Date == f);
-            }
-
-            // Filtrar por Empresa (Mejora solicitada)
-            if (empresaId.HasValue && empresaId > 0)
-            {
-                query = query.Where(v => v.Autobus.EmpresaID == empresaId.Value);
-            }
+            if (fecha.HasValue) query = query.Where(v => v.FechaSalida.Date == fecha.Value.Date);
+            if (empresaId.HasValue && empresaId > 0) query = query.Where(v => v.Autobus.EmpresaID == empresaId.Value);
 
             return await query.ToListAsync();
         }
