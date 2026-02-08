@@ -155,6 +155,30 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return NoContent();
         }
 
+        [HttpPost("LimpiarVencidos")]
+        [Authorize(Roles = "Administrador")]
+        public async Task<IActionResult> LimpiarVencidos()
+        {
+            var ahora = DateTime.Now;
+            var viajesVencidos = await _context.Viajes
+                                        .Where(v => !v.IsDeleted && v.FechaSalida < ahora)
+                                        .ToListAsync();
+
+            if (viajesVencidos.Count == 0)
+            {
+                return Ok(new { Message = "No se encontraron viajes vencidos para limpiar." });
+            }
+
+            foreach (var viaje in viajesVencidos)
+            {
+                viaje.IsDeleted = true;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = $"Se han movido {viajesVencidos.Count} viajes vencidos a la papelera." });
+        }
+
         [HttpPost("{id}/restore")]
         public async Task<IActionResult> RestoreViaje(int id)
         {
