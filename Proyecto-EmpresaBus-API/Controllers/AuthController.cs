@@ -42,7 +42,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
                     return BadRequest("El correo electrónico ingresado ya se encuentra registrado por otro usuario.");
                 }
 
-                
                 if (await _context.Usuarios.AnyAsync(u => u.DNI == registerDto.DNI))
                 {
                     return BadRequest("El DNI ingresado ya está asociado a una cuenta existente.");
@@ -56,7 +55,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 int? locId = null;
                 if (!string.IsNullOrEmpty(registerDto.Ciudad))
                 {
-                    var loc = await _context.Localidades.FirstOrDefaultAsync(l => l.NombreLocalidad == registerDto.Ciudad);
+                    var loc = await _context.Localidades.FirstOrDefaultAsync(l => l.NombreLocalidad.ToLower() == registerDto.Ciudad.ToLower() && l.ProvinciaID == registerDto.ProvinciaID);
                     if (loc != null) locId = loc.LocalidadID;
                 }
 

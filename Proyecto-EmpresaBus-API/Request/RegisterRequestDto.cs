@@ -8,6 +8,7 @@
         public string DNI { get; set; }
         public string Rol { get; set; }
         public string? Ciudad { get; set; }
+        public int? ProvinciaID { get; set; }
         public int? LocalidadID { get; set; }
         public string? Direccion { get; set; }
         public string? Telefono { get; set; }
