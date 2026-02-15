@@ -64,8 +64,8 @@ namespace Proyecto_EmpresaBus_API.Controllers
         public async Task<ActionResult<UsuarioResponseDto>> GetUsuario(int id)
         {
             var usuario = await _context.Usuarios
-                .Include(u => u.Localidad)              
-                    .ThenInclude(l => l.Provincia)      
+                .Include(u => u.Localidad)
+                    .ThenInclude(l => l.Provincia)
                 .FirstOrDefaultAsync(u => u.UsuarioID == id);
 
             if (usuario == null) return NotFound();
@@ -83,7 +83,9 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 Edad = usuario.Edad,
                 Sexo = usuario.Sexo,
                 Ciudad = usuario.Localidad?.NombreLocalidad,
-                Provincia = usuario.Localidad?.Provincia?.NombreProvincia
+                Provincia = usuario.Localidad?.Provincia?.NombreProvincia,
+                LocalidadID = usuario.LocalidadID,
+                ProvinciaID = usuario.Localidad?.ProvinciaID
             };
 
             return Ok(usuarioDto);
@@ -92,16 +94,15 @@ namespace Proyecto_EmpresaBus_API.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> PutUsuario(int id, UsuarioUpdateDto usuarioDto)
         {
-            if (id != usuarioDto.UsuarioID) return BadRequest("ID url no coincide con body.");
+            if (id != usuarioDto.UsuarioID) return BadRequest("ID no coincide.");
 
             var usuarioEnDb = await _context.Usuarios.FindAsync(id);
-            if (usuarioEnDb == null) return NotFound("Usuario no encontrado.");
+            if (usuarioEnDb == null) return NotFound();
 
-            
             if (usuarioEnDb.Email.ToLower().Trim() != usuarioDto.Email.ToLower().Trim())
             {
-                bool emailOcupado = await _context.Usuarios.AnyAsync(u => u.Email == usuarioDto.Email && u.UsuarioID != id);
-                if (emailOcupado) return BadRequest("El email ya está en uso.");
+                if (await _context.Usuarios.AnyAsync(u => u.Email == usuarioDto.Email && u.UsuarioID != id))
+                    return BadRequest("El email ya está en uso.");
             }
 
             usuarioEnDb.NombreCompleto = usuarioDto.NombreCompleto;
@@ -112,24 +113,19 @@ namespace Proyecto_EmpresaBus_API.Controllers
             usuarioEnDb.Edad = usuarioDto.Edad;
             usuarioEnDb.Sexo = usuarioDto.Sexo;
 
-            if (!string.IsNullOrEmpty(usuarioDto.Ciudad))
+            if (!string.IsNullOrEmpty(usuarioDto.Ciudad) && usuarioDto.ProvinciaID.HasValue)
             {
-                var loc = await _context.Localidades.FirstOrDefaultAsync(l => l.NombreLocalidad == usuarioDto.Ciudad);
+                var loc = await _context.Localidades.FirstOrDefaultAsync(l =>
+                    l.NombreLocalidad.ToLower() == usuarioDto.Ciudad.ToLower() &&
+                    l.ProvinciaID == usuarioDto.ProvinciaID);
+
                 if (loc != null) usuarioEnDb.LocalidadID = loc.LocalidadID;
             }
 
-            if (!string.IsNullOrEmpty(usuarioDto.Rol)) usuarioEnDb.Rol = usuarioDto.Rol;
             if (!string.IsNullOrWhiteSpace(usuarioDto.Password)) usuarioEnDb.PasswordHash = usuarioDto.Password;
 
-            try
-            {
-                await _context.SaveChangesAsync();
-                return NoContent();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Error al actualizar: {ex.Message}");
-            }
+            await _context.SaveChangesAsync();
+            return NoContent();
         }
 
         [HttpDelete("{id}")]

@@ -84,12 +84,12 @@ namespace Proyecto_EmpresaBus_API.Controllers
         public async Task<ActionResult<IEnumerable<Boleto>>> GetBoletos([FromQuery] int? usuarioId)
         {
             var query = _context.Boletos
+                .IgnoreQueryFilters()
                 .Include(b => b.Viaje).ThenInclude(v => v.Ruta).ThenInclude(r => r.Origen)
                 .Include(b => b.Viaje).ThenInclude(v => v.Ruta).ThenInclude(r => r.Destino)
                 .Include(b => b.Viaje).ThenInclude(v => v.Autobus).ThenInclude(a => a.Empresa)
                 .Include(b => b.Asiento)
                 .Include(b => b.Usuario)
-
                 .AsQueryable();
 
             if (usuarioId.HasValue)
