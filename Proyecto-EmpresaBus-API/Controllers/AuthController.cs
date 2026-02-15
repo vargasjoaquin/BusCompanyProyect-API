@@ -33,53 +33,31 @@ namespace Proyecto_EmpresaBus_API.Controllers
             {
                 if (!ModelState.IsValid) return BadRequest(ModelState);
 
-                if (string.IsNullOrWhiteSpace(registerDto.NombreCompleto) ||
-                    string.IsNullOrWhiteSpace(registerDto.Email) ||
-                    string.IsNullOrWhiteSpace(registerDto.Password))
+                if (registerDto == null) return BadRequest("Datos de registro no recibidos.");
+
+                var emailLimpio = registerDto.Email.Trim().ToLower();
+
+                if (await _context.Usuarios.AnyAsync(u => u.Email == emailLimpio))
                 {
-                    return BadRequest("Nombre, Email y Password son obligatorios.");
+                    return BadRequest("El correo electrónico ingresado ya se encuentra registrado por otro usuario.");
                 }
 
-                var usuarioExistente = await _context.Usuarios
-                                             .FirstOrDefaultAsync(u => u.Email == registerDto.Email);
-
-                if (usuarioExistente != null)
+                
+                if (await _context.Usuarios.AnyAsync(u => u.DNI == registerDto.DNI))
                 {
-                    return BadRequest($"El email '{registerDto.Email}' ya está registrado.");
+                    return BadRequest("El DNI ingresado ya está asociado a una cuenta existente.");
                 }
 
-                var dniExistente = await _context.Usuarios
-                                     .FirstOrDefaultAsync(u => u.DNI == registerDto.DNI);
-
-                if (dniExistente != null)
+                if (await _context.Usuarios.AnyAsync(u => u.Telefono == registerDto.Telefono))
                 {
-                    return BadRequest($"El DNI '{registerDto.DNI}' ya pertenece a otro usuario.");
-                }
-
-                if (!string.IsNullOrWhiteSpace(registerDto.Telefono))
-                {
-                    var telefonoExistente = await _context.Usuarios
-                                                 .FirstOrDefaultAsync(u => u.Telefono == registerDto.Telefono);
-                    if (telefonoExistente != null)
-                    {
-                        return BadRequest($"El teléfono '{registerDto.Telefono}' ya pertenece a otro usuario.");
-                    }
+                    return BadRequest("El número de teléfono ya está en uso por otro usuario.");
                 }
 
                 int? locId = null;
                 if (!string.IsNullOrEmpty(registerDto.Ciudad))
                 {
-                    var loc = await _context.Localidades
-                                            .FirstOrDefaultAsync(l => l.NombreLocalidad == registerDto.Ciudad);
-
-                    if (loc != null)
-                    {
-                        locId = loc.LocalidadID;
-                    }
-                    else
-                    {
-                        Console.WriteLine($"[AVISO] No se encontró la localidad: {registerDto.Ciudad}");
-                    }
+                    var loc = await _context.Localidades.FirstOrDefaultAsync(l => l.NombreLocalidad == registerDto.Ciudad);
+                    if (loc != null) locId = loc.LocalidadID;
                 }
 
                 string passwordEncriptada = BCrypt.Net.BCrypt.HashPassword(registerDto.Password);
@@ -87,7 +65,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 var nuevoUsuario = new Usuario
                 {
                     NombreCompleto = registerDto.NombreCompleto.Trim(),
-                    Email = registerDto.Email.Trim().ToLower(),
+                    Email = emailLimpio,
                     PasswordHash = passwordEncriptada,
                     DNI = registerDto.DNI,
                     Rol = !string.IsNullOrEmpty(registerDto.Rol) ? registerDto.Rol : "Pasajero",
@@ -102,39 +80,15 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 _context.Usuarios.Add(nuevoUsuario);
                 await _context.SaveChangesAsync();
 
-                try
-                {
-                    string asunto = "¡Bienvenido a Bux! - Registro Exitoso";
-
-                    string cuerpo = $"Hola {nuevoUsuario.NombreCompleto},\n\n" +
-                                    "Tu cuenta ha sido creada exitosamente en Bux App.\n\n" +
-                                    "Tus datos de acceso son:\n" +
-                                    $"Usuario: {nuevoUsuario.Email}\n\n" +
-                                    "Gracias por elegir viajar con nosotros.\n" +
-                                    "El equipo de Bux.";
-
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await _emailService.SendEmailAsync(nuevoUsuario.Email, asunto, cuerpo);
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Error enviando email en segundo plano: {ex.Message}");
-                        }
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error preparando el email: {ex.Message}");
-                }
-
                 return Ok(new { Message = "Usuario registrado exitosamente" });
             }
-            catch (Exception ex)
+            catch (DbUpdateException)
             {
-                return StatusCode(500, $"Error servidor: {ex.Message}");
+                return BadRequest("El Email, DNI o Teléfono ingresado ya está en uso.");
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, "Error del servidor: No se pudo completar el registro.");
             }
         }
 
