@@ -25,20 +25,18 @@ public class ApiDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        base.OnModelCreating(modelBuilder);
-
         modelBuilder.Entity<RutaParada>()
             .HasKey(rp => new { rp.RutaID, rp.ParadaID });
 
-        
+
         modelBuilder.Entity<Asiento>()
             .HasIndex(a => new { a.AutobusID, a.NumeroAsiento }).IsUnique();
 
-        
+
         modelBuilder.Entity<Boleto>()
             .HasIndex(b => new { b.ViajeID, b.AsientoID }).IsUnique();
 
-       
+
         modelBuilder.Entity<Ruta>()
             .HasOne(r => r.Origen)
             .WithMany()
@@ -54,6 +52,9 @@ public class ApiDbContext : DbContext
         modelBuilder.Entity<Autobus>().HasQueryFilter(a => !a.IsDeleted);
         modelBuilder.Entity<Viaje>().HasQueryFilter(v => !v.IsDeleted);
         modelBuilder.Entity<Usuario>().HasQueryFilter(u => !u.IsDeleted);
+
+        modelBuilder.Entity<Usuario>().HasIndex(u => u.Email).IsUnique();
+        modelBuilder.Entity<Usuario>().HasIndex(u => u.DNI).IsUnique();
+        modelBuilder.Entity<Usuario>().HasIndex(u => u.Telefono).IsUnique();
     }
 }
-

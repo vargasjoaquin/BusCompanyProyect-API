@@ -56,6 +56,16 @@ namespace Proyecto_EmpresaBus_API.Controllers
                     return BadRequest($"El DNI '{registerDto.DNI}' ya pertenece a otro usuario.");
                 }
 
+                if (!string.IsNullOrWhiteSpace(registerDto.Telefono))
+                {
+                    var telefonoExistente = await _context.Usuarios
+                                                 .FirstOrDefaultAsync(u => u.Telefono == registerDto.Telefono);
+                    if (telefonoExistente != null)
+                    {
+                        return BadRequest($"El teléfono '{registerDto.Telefono}' ya pertenece a otro usuario.");
+                    }
+                }
+
                 int? locId = null;
                 if (!string.IsNullOrEmpty(registerDto.Ciudad))
                 {
