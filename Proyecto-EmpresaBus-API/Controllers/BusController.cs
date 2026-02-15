@@ -51,20 +51,21 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 return BadRequest($"La empresa seleccionada no es válida.");
             }
 
-            var yaExiste = await _context.Autobuses.AnyAsync(a => a.Matricula == autobus.Matricula);
+            // BUSCAMOS EL OBJETO IGNORANDO FILTROS PARA SABER POR QUÉ FALLA
+            var conflictoPatente = await _context.Autobuses.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Matricula == autobus.Matricula);
 
-            if (yaExiste)
+            if (conflictoPatente != null)
             {
-                Console.WriteLine($"[ERROR] ¡La API encontró que '{autobus.Matricula}' YA EXISTE en {dbName}!");
-                return BadRequest($"La matrícula '{autobus.Matricula}' ya existe en la base de datos {dbName}.");
+                string estado = conflictoPatente.IsDeleted ? "en la Papelera" : "en la lista de Activos";
+                return BadRequest($"La patente '{autobus.Matricula}' ya existe {estado}.");
             }
 
-            bool numeroExiste = await _context.Autobuses
-                    .AnyAsync(a => a.NumeroBus == autobus.NumeroBus && !a.IsDeleted);
+            var conflictoNumero = await _context.Autobuses.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.NumeroBus == autobus.NumeroBus);
 
-            if (numeroExiste)
+            if (conflictoNumero != null)
             {
-                return BadRequest($"El número de unidad '{autobus.NumeroBus}' ya existe en la flota.");
+                string estado = conflictoNumero.IsDeleted ? "en la Papelera" : "en la lista de Activos";
+                return BadRequest($"El número de unidad '{autobus.NumeroBus}' ya existe {estado}.");
             }
 
             autobus.Empresa = null;
