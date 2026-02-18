@@ -153,18 +153,29 @@ namespace Proyecto_EmpresaBus_API.Controllers
             var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Email == model.Email.ToLower());
             if (usuario == null) return BadRequest("No existe una cuenta asociada a ese correo.");
 
-            // Generamos un token aleatorio único
             string token = Guid.NewGuid().ToString();
             usuario.PasswordResetToken = token;
-            usuario.ResetTokenExpires = DateTime.Now.AddHours(2); // Vence en 2 horas
+            usuario.ResetTokenExpires = DateTime.Now.AddHours(2);
 
             await _context.SaveChangesAsync();
 
-            // Enviamos el correo (Cambiá el puerto por el que use tu MVC)
-            string resetLink = $"https://localhost:44365/Auth/ResetPassword?token={token}";
-            string mensaje = $"Hola {usuario.NombreCompleto},\n\nHemos recibido una solicitud para restablecer tu contraseña.\n" +
-                             $"Ingresa al siguiente enlace para crear una nueva clave:\n\n{resetLink}\n\n" +
-                             $"Si no solicitaste esto, ignora este mensaje.";
+            string mvcBaseUrl = _configuration["AppMvcUrl"];
+            string resetLink = $"{mvcBaseUrl}restablecer-clave/{token}";
+
+            string mensaje = $@"
+        <div style='font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 40px; border-radius: 10px;'>
+            <div style='max-width: 500px; margin: auto; background: white; padding: 30px; border-radius: 15px; border: 1px solid #eee;'>
+                <h2 style='color: #4CAF50; text-align: center;'>Actualización de Seguridad</h2>
+                <p>Recibimos una solicitud para cambiar tu contraseña en <strong>Bux App</strong>.</p>
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='{resetLink}' 
+                       style='background-color: #4CAF50; color: white; padding: 15px 30px; text-decoration: none; font-weight: bold; border-radius: 30px; display: inline-block;'>
+                        DEFINIR NUEVA CLAVE
+                    </a>
+                </div>
+                <p style='color: #888; font-size: 11px;'>Si no solicitaste este cambio, simplemente ignora este email.</p>
+            </div>
+        </div>";
 
             await _emailService.SendEmailAsync(usuario.Email, "Restablecer Contraseña - Bux App", mensaje);
 
@@ -179,16 +190,13 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
             if (usuario == null) return BadRequest("El enlace es inválido o ha expirado.");
 
-            // Encriptamos la nueva contraseña
             usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.Password);
 
-            // Limpiamos el token
             usuario.PasswordResetToken = null;
             usuario.ResetTokenExpires = null;
 
             await _context.SaveChangesAsync();
             return Ok(new { Message = "Tu contraseña ha sido actualizada con éxito." });
         }
-
     }
 }

@@ -27,7 +27,7 @@ namespace Proyecto_EmpresaBus_API.Services
 
             var builder = new BodyBuilder();
 
-            builder.TextBody = mensaje;
+            builder.HtmlBody = mensaje;
 
             if (archivoAdjunto != null && !string.IsNullOrEmpty(nombreArchivo))
             {
