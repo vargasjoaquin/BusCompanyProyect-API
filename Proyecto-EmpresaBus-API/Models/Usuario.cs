@@ -14,6 +14,8 @@ namespace Proyecto_EmpresaBus_API.Models
         public string Email { get; set; }
         [Required]
         public string PasswordHash { get; set; }
+        public string? PasswordResetToken { get; set; }
+        public DateTime? ResetTokenExpires { get; set; } 
         [StringLength(20)]
         public string DNI { get; set; }
         [Required, StringLength(50)]

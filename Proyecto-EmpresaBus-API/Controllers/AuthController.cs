@@ -146,5 +146,49 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 return StatusCode(500, "Error interno del servidor");
             }
         }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordDto model)
+        {
+            var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Email == model.Email.ToLower());
+            if (usuario == null) return BadRequest("No existe una cuenta asociada a ese correo.");
+
+            // Generamos un token aleatorio único
+            string token = Guid.NewGuid().ToString();
+            usuario.PasswordResetToken = token;
+            usuario.ResetTokenExpires = DateTime.Now.AddHours(2); // Vence en 2 horas
+
+            await _context.SaveChangesAsync();
+
+            // Enviamos el correo (Cambiá el puerto por el que use tu MVC)
+            string resetLink = $"https://localhost:44365/Auth/ResetPassword?token={token}";
+            string mensaje = $"Hola {usuario.NombreCompleto},\n\nHemos recibido una solicitud para restablecer tu contraseña.\n" +
+                             $"Ingresa al siguiente enlace para crear una nueva clave:\n\n{resetLink}\n\n" +
+                             $"Si no solicitaste esto, ignora este mensaje.";
+
+            await _emailService.SendEmailAsync(usuario.Email, "Restablecer Contraseña - Bux App", mensaje);
+
+            return Ok(new { Message = "Se ha enviado un enlace de recuperación a tu correo." });
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword(ResetPasswordDto model)
+        {
+            var usuario = await _context.Usuarios.FirstOrDefaultAsync(u =>
+                u.PasswordResetToken == model.Token && u.ResetTokenExpires > DateTime.Now);
+
+            if (usuario == null) return BadRequest("El enlace es inválido o ha expirado.");
+
+            // Encriptamos la nueva contraseña
+            usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.Password);
+
+            // Limpiamos el token
+            usuario.PasswordResetToken = null;
+            usuario.ResetTokenExpires = null;
+
+            await _context.SaveChangesAsync();
+            return Ok(new { Message = "Tu contraseña ha sido actualizada con éxito." });
+        }
+
     }
 }

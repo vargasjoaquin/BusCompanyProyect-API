@@ -15,7 +15,7 @@
 
         public string? Ciudad { get; set; }
         public string? Provincia { get; set; }
-        public int? LocalidadID { get; set; 
+        public int? LocalidadID { get; set; }
         public int? ProvinciaID { get; set; }
     }
 }
