@@ -82,8 +82,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 Telefono = usuario.Telefono,
                 Edad = usuario.Edad,
                 Sexo = usuario.Sexo,
-                Ciudad = usuario.Localidad?.NombreLocalidad,
-                Provincia = usuario.Localidad?.Provincia?.NombreProvincia,
                 LocalidadID = usuario.LocalidadID,
                 ProvinciaID = usuario.Localidad?.ProvinciaID
             };
