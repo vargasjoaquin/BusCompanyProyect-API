@@ -123,16 +123,42 @@ namespace Proyecto_EmpresaBus_API.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> PutViaje(int id, ViajeCreateDto viajeDto)
         {
-            var viaje = await _context.Viajes.FindAsync(id);
-            if (viaje == null) return NotFound();
+            var viaje = await _context.Viajes.IgnoreQueryFilters().FirstOrDefaultAsync(v => v.ViajeID == id);
+            if (viaje == null) return NotFound("El viaje no existe.");
+
+            var ruta = await _context.Rutas.FindAsync(viajeDto.RutaID);
+            if (ruta == null) return BadRequest("La RutaID no es válida.");
+
+            DateTime nuevaFechaSalida = viajeDto.FechaViaje.Date + viajeDto.HoraSalida.TimeOfDay;
+            bool plataformaChocada = await _context.Viajes.AnyAsync(v =>
+                v.Plataforma == viajeDto.Plataforma &&
+                v.FechaSalida == nuevaFechaSalida &&
+                v.ViajeID != id &&
+                !v.IsDeleted);
+
+            if (plataformaChocada)
+                return BadRequest($"La plataforma {viajeDto.Plataforma} ya está ocupada en ese horario.");
+
+            double distancia = (double)ruta.DistanciaKM;
+            if (distancia <= 0) distancia = 100;
+            double horasViaje = (distancia / 80.0) + 0.5;
 
             viaje.RutaID = viajeDto.RutaID;
             viaje.AutobusID = viajeDto.AutobusID;
-            viaje.FechaSalida = viajeDto.FechaViaje.Date + viajeDto.HoraSalida.TimeOfDay;
+            viaje.FechaSalida = nuevaFechaSalida;
+            viaje.FechaLlegadaEstimada = nuevaFechaSalida.AddHours(horasViaje);
+            viaje.PrecioBase = viajeDto.PrecioBase;
+            viaje.Plataforma = viajeDto.Plataforma;
 
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            try
+            {
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error al actualizar: {ex.Message}");
+            }
         }
 
         [HttpDelete("{id}")]
