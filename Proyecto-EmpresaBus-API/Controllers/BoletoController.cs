@@ -107,6 +107,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
         public async Task<ActionResult<Boleto>> GetBoleto(int id)
         {
             var boleto = await _context.Boletos
+                .IgnoreQueryFilters()
                 .Include(b => b.Viaje)
                     .ThenInclude(v => v.Ruta)
                         .ThenInclude(r => r.Origen)
@@ -120,7 +121,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 .Include(b => b.Usuario)
                 .FirstOrDefaultAsync(b => b.BoletoID == id);
 
-            if (boleto == null) return NotFound();
+            if (boleto == null) return NotFound("El boleto no existe.");
 
             return boleto;
         }

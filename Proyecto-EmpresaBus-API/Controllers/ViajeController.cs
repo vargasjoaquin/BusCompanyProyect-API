@@ -93,13 +93,19 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
             DateTime fechaSalida = viajeDto.FechaViaje.Date + viajeDto.HoraSalida.TimeOfDay;
 
-            bool plataformaOcupada = await _context.Viajes.AnyAsync(v =>
-                v.Plataforma == viajeDto.Plataforma &&
-                v.FechaSalida == fechaSalida &&
-                !v.IsDeleted);
+            DateTime inicioRango = fechaSalida.AddMinutes(-20);
+            DateTime finRango = fechaSalida.AddMinutes(5);
+
+            bool plataformaOcupada = await _context.Viajes
+                .AnyAsync(v => v.Plataforma == viajeDto.Plataforma &&
+                               v.FechaSalida >= inicioRango &&
+                               v.FechaSalida <= finRango &&
+                               !v.IsDeleted);
 
             if (plataformaOcupada)
-                return BadRequest($"La plataforma {viajeDto.Plataforma} ya se encuentra ocupada por otra unidad en el horario {fechaSalida:HH:mm}.");
+            {
+                return BadRequest($"Conflicto detectado: La plataforma {viajeDto.Plataforma} ya estará en uso en el rango de {inicioRango:HH:mm} a {finRango:HH:mm}.");
+            }
 
             double distancia = (double)ruta.DistanciaKM;
             if (distancia <= 0) distancia = 100;
