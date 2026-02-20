@@ -51,7 +51,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 return BadRequest($"La empresa seleccionada no es válida.");
             }
 
-            // BUSCAMOS EL OBJETO IGNORANDO FILTROS PARA SABER POR QUÉ FALLA
             var conflictoPatente = await _context.Autobuses.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Matricula == autobus.Matricula);
 
             if (conflictoPatente != null)
@@ -59,13 +58,12 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 string estado = conflictoPatente.IsDeleted ? "en la Papelera" : "en la lista de Activos";
                 return BadRequest($"La patente '{autobus.Matricula}' ya existe {estado}.");
             }
-
-            var conflictoNumero = await _context.Autobuses.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.NumeroBus == autobus.NumeroBus);
+            var conflictoNumero = await _context.Autobuses.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.NumeroBus == autobus.NumeroBus && a.EmpresaID == autobus.EmpresaID);
 
             if (conflictoNumero != null)
             {
                 string estado = conflictoNumero.IsDeleted ? "en la Papelera" : "en la lista de Activos";
-                return BadRequest($"El número de unidad '{autobus.NumeroBus}' ya existe {estado}.");
+                return BadRequest($"El número de unidad '{autobus.NumeroBus}' ya existe para esta empresa {estado}.");
             }
 
             autobus.Empresa = null;
@@ -141,6 +139,16 @@ namespace Proyecto_EmpresaBus_API.Controllers
             if (autobus == null) return NotFound("El autobús no existe (ni siquiera en la papelera).");
 
             if (!autobus.IsDeleted) return BadRequest("El autobús ya está activo.");
+
+            if (await _context.Autobuses.AnyAsync(a => a.Matricula == autobus.Matricula))
+            {
+                return BadRequest($"No se puede restaurar: la patente '{autobus.Matricula}' ya está en uso por otra unidad activa.");
+            }
+
+            if (await _context.Autobuses.AnyAsync(a => a.NumeroBus == autobus.NumeroBus && a.EmpresaID == autobus.EmpresaID))
+            {
+                return BadRequest($"No se puede restaurar: el interno #{autobus.NumeroBus} ya existe activo en esta empresa.");
+            }
 
             autobus.IsDeleted = false;
             await _context.SaveChangesAsync();

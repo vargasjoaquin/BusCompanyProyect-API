@@ -83,8 +83,13 @@ namespace Proyecto_EmpresaBus_API.Controllers
             var ruta = await _context.Rutas.FirstOrDefaultAsync(r => r.RutaID == viajeDto.RutaID);
             if (ruta == null) return BadRequest("La RutaID no existe.");
 
-            var autobus = await _context.Autobuses.FirstOrDefaultAsync(a => a.AutobusID == viajeDto.AutobusID);
+            var autobus = await _context.Autobuses.Include(a => a.Empresa)
+                                .FirstOrDefaultAsync(a => a.AutobusID == viajeDto.AutobusID);
             if (autobus == null) return BadRequest("El AutobusID no existe.");
+
+            var ultimoServicio = await _context.Viajes
+                                        .Where(v => v.Autobus.EmpresaID == autobus.EmpresaID)
+                                        .MaxAsync(v => (int?)v.NumeroServicio) ?? 0;
 
             DateTime fechaSalida = viajeDto.FechaViaje.Date + viajeDto.HoraSalida.TimeOfDay;
 
@@ -111,7 +116,8 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 PrecioBase = viajeDto.PrecioBase,
                 EstadoViaje = "Programado",
                 Plataforma = viajeDto.Plataforma,
-                IsDeleted = false
+                IsDeleted = false,
+                NumeroServicio = ultimoServicio + 1
             };
 
             _context.Viajes.Add(nuevoViaje);

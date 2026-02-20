@@ -8,6 +8,8 @@ namespace Proyecto_EmpresaBus_API.Models
         [Key]
         public int ViajeID { get; set; }
 
+        public int? NumeroServicio { get; set; }
+
         public int RutaID { get; set; }
         public int AutobusID { get; set; }
 
