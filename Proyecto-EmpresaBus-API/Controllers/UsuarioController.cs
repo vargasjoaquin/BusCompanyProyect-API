@@ -82,6 +82,8 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 Telefono = usuario.Telefono,
                 Edad = usuario.Edad,
                 Sexo = usuario.Sexo,
+                Ciudad = usuario.Localidad?.NombreLocalidad,
+                Provincia = usuario.Localidad?.Provincia?.NombreProvincia,
                 LocalidadID = usuario.LocalidadID,
                 ProvinciaID = usuario.Localidad?.ProvinciaID
             };
@@ -117,7 +119,23 @@ namespace Proyecto_EmpresaBus_API.Controllers
                     l.NombreLocalidad.ToLower() == usuarioDto.Ciudad.ToLower() &&
                     l.ProvinciaID == usuarioDto.ProvinciaID);
 
-                if (loc != null) usuarioEnDb.LocalidadID = loc.LocalidadID;
+                if (loc != null)
+                {
+                    usuarioEnDb.LocalidadID = loc.LocalidadID;
+                }
+                else // Si el usuario cambió la ciudad por una que no existe en DB, la creamos
+                {
+                    var nuevaLocalidad = new Localidad
+                    {
+                        NombreLocalidad = usuarioDto.Ciudad,
+                        ProvinciaID = usuarioDto.ProvinciaID.Value,
+                        Latitud = 0,
+                        Longitud = 0
+                    };
+                    _context.Localidades.Add(nuevaLocalidad);
+                    await _context.SaveChangesAsync(); // Obtenemos el nuevo ID
+                    usuarioEnDb.LocalidadID = nuevaLocalidad.LocalidadID;
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(usuarioDto.Password)) usuarioEnDb.PasswordHash = usuarioDto.Password;

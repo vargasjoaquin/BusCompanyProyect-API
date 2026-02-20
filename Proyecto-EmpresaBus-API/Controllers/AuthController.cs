@@ -56,7 +56,24 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 if (!string.IsNullOrEmpty(registerDto.Ciudad))
                 {
                     var loc = await _context.Localidades.FirstOrDefaultAsync(l => l.NombreLocalidad.ToLower() == registerDto.Ciudad.ToLower() && l.ProvinciaID == registerDto.ProvinciaID);
-                    if (loc != null) locId = loc.LocalidadID;
+
+                    if (loc != null)
+                    {
+                        locId = loc.LocalidadID;
+                    }
+                    else // Si la ciudad tipeada no existe en la base de datos, la creamos
+                    {
+                        var nuevaLocalidad = new Localidad
+                        {
+                            NombreLocalidad = registerDto.Ciudad,
+                            ProvinciaID = registerDto.ProvinciaID ?? 0,
+                            Latitud = 0, // Valores por defecto para evitar errores si son obligatorios en DB
+                            Longitud = 0
+                        };
+                        _context.Localidades.Add(nuevaLocalidad);
+                        await _context.SaveChangesAsync(); // Guardamos para obtener el LocalidadID generado
+                        locId = nuevaLocalidad.LocalidadID;
+                    }
                 }
 
                 string passwordEncriptada = BCrypt.Net.BCrypt.HashPassword(registerDto.Password);
