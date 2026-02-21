@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Proyecto_EmpresaBus_API.Data;
 using Proyecto_EmpresaBus_API.Dto;
+using Proyecto_EmpresaBus_API.Interfaces;
 using Proyecto_EmpresaBus_API.Models;
 
 namespace Proyecto_EmpresaBus_API.Controllers
@@ -12,10 +13,12 @@ namespace Proyecto_EmpresaBus_API.Controllers
     public class ViajeController : ControllerBase
     {
         private readonly ApiDbContext _context;
+        private readonly IEmailService _emailService;
 
-        public ViajeController(ApiDbContext context)
+        public ViajeController(ApiDbContext context, IEmailService emailService)
         {
             _context = context;
+            _emailService = emailService;
         }
 
         [HttpGet]
@@ -177,14 +180,37 @@ namespace Proyecto_EmpresaBus_API.Controllers
         [Authorize(Roles = "Administrador")]
         public async Task<IActionResult> DeleteViaje(int id)
         {
-            var viaje = await _context.Viajes.FindAsync(id);
+            var viaje = await _context.Viajes
+        .Include(v => v.Ruta)
+        .Include(v => v.Boletos).ThenInclude(b => b.Usuario)
+        .FirstOrDefaultAsync(v => v.ViajeID == id);
+
             if (viaje == null) return NotFound();
 
-            viaje.IsDeleted = true;
-            viaje.EstadoViaje = "Cancelado";
+            // --- NUEVA FUNCIONALIDAD: NOTIFICAR CANCELACIÓN A PASAJEROS ---
+            if (viaje.Boletos.Any())
+            {
+                // Agrupamos para no mandarle 4 mails si la persona compró 4 butacas juntas
+                var correosYPersonas = viaje.Boletos.Select(b => b.Usuario).Distinct().ToList();
 
+                foreach (var user in correosYPersonas)
+                {
+                    string alertHtml = $@"
+                <div style='font-family: Arial; padding: 25px; border: 1px solid #dc3545; border-radius: 15px; max-width: 550px;'>
+                    <h2 style='color: #dc3545;'>Servicio Cancelado ⚠️</h2>
+                    <p>Hola <strong>{user.NombreCompleto}</strong>,</p>
+                    <p>Te informamos que el viaje <strong>{viaje.Ruta.NombreRuta}</strong> programado para el <strong>{viaje.FechaSalida:dd/MM/yyyy HH:mm}</strong> ha sido suspendido.</p>
+                    <p>Tus pasajes han sido guardados en tu historial como <strong>'Cancelado por Empresa'</strong>. Por favor comunícate con soporte para el reintegro.</p>
+                </div>";
+
+                    _ = Task.Run(async () => {
+                        await _emailService.SendEmailAsync(user.Email, "IMPORTANTE: Viaje Cancelado - Bux App", alertHtml, true);
+                    });
+                }
+            }
+
+            viaje.IsDeleted = true; // Aplicamos soft delete
             await _context.SaveChangesAsync();
-
             return NoContent();
         }
 

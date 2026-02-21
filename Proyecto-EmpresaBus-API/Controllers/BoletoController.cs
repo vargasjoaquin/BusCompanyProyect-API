@@ -130,14 +130,32 @@ namespace Proyecto_EmpresaBus_API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBoleto(int id)
         {
-            var boleto = await _context.Boletos.FindAsync(id);
-            if (boleto == null)
-            {
-                return NotFound("El boleto no existe.");
-            }
+            var boleto = await _context.Boletos
+        .Include(b => b.Viaje).ThenInclude(v => v.Ruta)
+        .Include(b => b.Usuario)
+        .FirstOrDefaultAsync(b => b.BoletoID == id);
+
+            if (boleto == null) return NotFound();
+
+            string mailUsuario = boleto.Usuario.Email;
+            string nombre = boleto.Usuario.NombreCompleto;
+            string rutaInfo = boleto.Viaje.Ruta.NombreRuta;
 
             _context.Boletos.Remove(boleto);
             await _context.SaveChangesAsync();
+
+            // --- NUEVA FUNCIONALIDAD: CONFIRMAR BAJA DE RESERVA ---
+            string cuerpoBaja = $@"
+        <div style='font-family: Arial; padding: 25px; border: 1px solid #888; border-radius: 15px;'>
+            <h3 style='color: #444;'>Cancelación de Pasaje Confirmada</h3>
+            <p>Hola <strong>{nombre}</strong>,</p>
+            <p>Confirmamos que el pasaje para el viaje <strong>{rutaInfo}</strong> ha sido cancelado con éxito y el asiento ya fue liberado.</p>
+            <p>Esperamos viajar con vos nuevamente pronto.</p>
+        </div>";
+
+            _ = Task.Run(async () => {
+                await _emailService.SendEmailAsync(mailUsuario, "Baja de Reserva - Bux App", cuerpoBaja, true);
+            });
 
             return NoContent();
         }

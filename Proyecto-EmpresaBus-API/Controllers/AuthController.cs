@@ -96,6 +96,28 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 _context.Usuarios.Add(nuevoUsuario);
                 await _context.SaveChangesAsync();
 
+                string cuerpoHtml = $@"
+        <div style='font-family: Arial; padding: 25px; border: 1px solid #4CAF50; border-radius: 15px; max-width: 550px;'>
+            <h2 style='color: #4CAF50; text-align: center;'>¡Bienvenido a Bux App! 🚌</h2>
+            <p>Hola <strong>{nuevoUsuario.NombreCompleto}</strong>,</p>
+            <p>Tu cuenta ha sido creada exitosamente. Ya puedes empezar a programar tus viajes y comprar tus pasajes de forma digital.</p>
+            <div style='background: #f4fdf4; padding: 15px; border-radius: 10px; border-left: 5px solid #4CAF50;'>
+                <p style='margin: 0;'><strong>Usuario (Email):</strong> {nuevoUsuario.Email}</p>
+                <p style='margin: 5px 0 0 0;'><strong>Fecha de registro:</strong> {nuevoUsuario.FechaCreacion:dd/MM/yyyy HH:mm} hs</p>
+            </div>
+            <p style='margin-top: 20px;'>Gracias por elegir viajar con nosotros.</p>
+            <hr style='border: 0; border-top: 1px solid #eee;' />
+            <p style='font-size: 11px; color: #888; text-align: center;'>Este es un correo automático, por favor no respondas.</p>
+        </div>";
+
+                _ = Task.Run(async () => {
+                    try
+                    {
+                        await _emailService.SendEmailAsync(nuevoUsuario.Email, "¡Registro Exitoso! - Bux App", cuerpoHtml, true);
+                    }
+                    catch { /* Logger */ }
+                });
+
                 return Ok(new { Message = "Usuario registrado exitosamente" });
             }
             catch (DbUpdateException)

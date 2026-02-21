@@ -6,7 +6,7 @@
         public string Email { get; set; }
         public string Password { get; set; }
         public string DNI { get; set; }
-        public string Rol { get; set; }
+        public string? Rol { get; set; }
         public string? Ciudad { get; set; }
         public int? ProvinciaID { get; set; }
         public int? LocalidadID { get; set; }
