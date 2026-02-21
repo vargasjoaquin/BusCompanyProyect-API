@@ -180,14 +180,9 @@ namespace Proyecto_EmpresaBus_API.Controllers
             var viaje = await _context.Viajes.FindAsync(id);
             if (viaje == null) return NotFound();
 
-            bool tienePasajeros = await _context.Boletos.AnyAsync(b => b.ViajeID == id);
-
-            if (tienePasajeros)
-            {
-                return BadRequest("No se puede eliminar el viaje: Ya hay pasajes vendidos a clientes.");
-            }
-
             viaje.IsDeleted = true;
+            viaje.EstadoViaje = "Cancelado";
+
             await _context.SaveChangesAsync();
 
             return NoContent();

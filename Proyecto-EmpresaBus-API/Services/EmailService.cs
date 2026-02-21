@@ -7,13 +7,12 @@ namespace Proyecto_EmpresaBus_API.Services
     public class EmailService : IEmailService
     {
         private readonly IConfiguration _configuration;
-
         public EmailService(IConfiguration configuration)
         {
             _configuration = configuration;
         }
 
-        public async Task SendEmailAsync(string destinatario, string asunto, string mensaje, byte[]? archivoAdjunto = null, string nombreArchivo = null)
+        public async Task SendEmailAsync(string destinatario, string asunto, string mensaje, bool isHtml = false, byte[]? archivoAdjunto = null, string nombreArchivo = null)
         {
             var smtpServer = _configuration["EmailSettings:SmtpServer"];
             var smtpPort = int.Parse(_configuration["EmailSettings:Port"]);
@@ -27,7 +26,8 @@ namespace Proyecto_EmpresaBus_API.Services
 
             var builder = new BodyBuilder();
 
-            builder.HtmlBody = mensaje;
+            if (isHtml) builder.HtmlBody = mensaje;
+            else builder.TextBody = mensaje;
 
             if (archivoAdjunto != null && !string.IsNullOrEmpty(nombreArchivo))
             {
@@ -45,4 +45,5 @@ namespace Proyecto_EmpresaBus_API.Services
             }
         }
     }
+
 }

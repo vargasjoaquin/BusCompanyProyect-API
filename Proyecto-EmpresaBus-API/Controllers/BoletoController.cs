@@ -153,10 +153,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
             try
             {
-                var viaje = await _context.Viajes
-                    .Include(v => v.Ruta)
-                    .FirstOrDefaultAsync(v => v.ViajeID == dto.ViajeID);
-
+                var viaje = await _context.Viajes.Include(v => v.Ruta).FirstOrDefaultAsync(v => v.ViajeID == dto.ViajeID);
                 if (viaje == null) return NotFound("Viaje no encontrado");
 
                 var asientosFisicos = await _context.Asientos
@@ -164,19 +161,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
                     .ToListAsync();
 
                 if (asientosFisicos.Count != dto.Asientos.Count)
-                    return BadRequest("Uno o más asientos solicitados no existen en este bus.");
-
-                var idsAsientos = asientosFisicos.Select(a => a.AsientoID).ToList();
-
-                var ocupados = await _context.Boletos
-                    .Where(b => b.ViajeID == dto.ViajeID && idsAsientos.Contains(b.AsientoID))
-                    .Include(b => b.Asiento)
-                    .ToListAsync();
-
-                if (ocupados.Any())
-                {
-                    return BadRequest($"Ya están ocupados: {string.Join(", ", ocupados.Select(o => o.Asiento.NumeroAsiento))}");
-                }
+                    return BadRequest("Uno o más asientos solicitados no existen.");
 
                 var nuevosBoletos = new List<Boleto>();
                 foreach (var asiento in asientosFisicos)
@@ -194,12 +179,11 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
                 _context.Boletos.AddRange(nuevosBoletos);
                 await _context.SaveChangesAsync();
-
                 await transaction.CommitAsync();
 
                 try
                 {
-                    var datosCompletos = await _context.Viajes
+                    var datosFull = await _context.Viajes
                         .Include(v => v.Ruta).ThenInclude(r => r.Origen)
                         .Include(v => v.Ruta).ThenInclude(r => r.Destino)
                         .Include(v => v.Autobus).ThenInclude(a => a.Empresa)
@@ -207,37 +191,38 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
                     var usuario = await _context.Usuarios.FindAsync(dto.UsuarioID);
 
-                    if (datosCompletos != null && usuario != null)
+                    if (datosFull != null && usuario != null)
                     {
-                        decimal total = datosCompletos.PrecioBase * dto.Asientos.Count;
+                        decimal total = datosFull.PrecioBase * dto.Asientos.Count;
+                        byte[] pdfBytes = Proyecto_EmpresaBus_API.Helpers.PdfGenerator.GenerarTicketPdf(datosFull, usuario, dto.Asientos, total);
 
-                        byte[] pdfBytes = Proyecto_EmpresaBus_API.Helpers.PdfGenerator.GenerarTicketPdf(datosCompletos, usuario, dto.Asientos, total);
+                        string mensajeStyled = $@"
+                    <div style='font-family: Arial; padding: 20px; border: 1px solid #ddd; border-radius: 15px; max-width: 500px;'>
+                        <h2 style='color: #4CAF50;'>¡Confirmación de Viaje! 🚌</h2>
+                        <p>Hola <strong>{usuario.NombreCompleto}</strong>,</p>
+                        <p>Tu compra ha sido procesada con éxito. Aquí tienes tu itinerario:</p>
+                        <ul style='list-style: none; padding: 0;'>
+                            <li><strong>Ruta:</strong> {datosFull.Ruta.NombreRuta}</li>
+                            <li><strong>Fecha:</strong> {datosFull.FechaSalida:dd/MM/yyyy HH:mm} hs</li>
+                            <li><strong>Asientos:</strong> {string.Join(", ", dto.Asientos)}</li>
+                        </ul>
+                        <p>Hemos adjuntado tu ticket PDF a este correo.</p>
+                        <br><p>Gracias por elegir <strong>Bux App</strong>.</p>
+                    </div>";
 
-                        string nombreArchivo = $"Ticket_Bux_{datosCompletos.ViajeID}.pdf";
-
-                        _ = Task.Run(async () =>
-                        {
-                            try
-                            {
-                                await _emailService.SendEmailAsync(
-                                    usuario.Email,
-                                    "¡Tu viaje está confirmado! - Bux App",
-                                    $"Hola {usuario.NombreCompleto},\n\nGracias por tu compra. Adjuntamos tu ticket de viaje en formato PDF.\n\n¡Buen viaje!",
-                                    pdfBytes,
-                                    nombreArchivo
-                                );
-                            }
-                            catch (Exception exEmail)
-                            {
-                                Console.WriteLine($"Error enviando email en background: {exEmail.Message}");
-                            }
+                        _ = Task.Run(async () => {
+                            await _emailService.SendEmailAsync(
+                                usuario.Email,
+                                "¡Viaje Confirmado! - Ticket Adjunto",
+                                mensajeStyled,
+                                true,
+                                pdfBytes,
+                                $"Ticket_Bux_{datosFull.ViajeID}.pdf"
+                            );
                         });
                     }
                 }
-                catch (Exception exPdf)
-                {
-                    Console.WriteLine($"Error generando PDF o preparando envío: {exPdf.Message}");
-                }
+                catch { /* Logger */ }
 
                 return Ok(new { Message = $"Se compraron {nuevosBoletos.Count} boletos exitosamente." });
             }

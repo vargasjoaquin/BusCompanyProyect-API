@@ -2,6 +2,6 @@
 {
     public interface IEmailService
     {
-        Task SendEmailAsync(string destinatario, string asunto, string mensaje, byte[]? archivoAdjunto = null, string nombreArchivo = null);
+        Task SendEmailAsync(string destinatario, string asunto, string mensaje, bool isHtml = false, byte[]? archivoAdjunto = null, string nombreArchivo = null);
     }
 }
