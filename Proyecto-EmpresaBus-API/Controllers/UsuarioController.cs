@@ -221,6 +221,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
                     UsuarioID = u.UsuarioID,
                     NombreCompleto = u.NombreCompleto,
                     Email = u.Email,
+                    DNI = u.DNI,
                     Rol = u.Rol,
                     FechaCreacion = u.FechaCreacion,
                     Direccion = u.Direccion,
