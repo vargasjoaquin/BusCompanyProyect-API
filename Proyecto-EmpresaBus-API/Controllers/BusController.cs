@@ -184,6 +184,26 @@ namespace Proyecto_EmpresaBus_API.Controllers
             _context.Asientos.AddRange(listaAsientos);
             await _context.SaveChangesAsync();
         }
+
+        [HttpGet("next-internal/{empresaId}")]
+        public async Task<ActionResult<int>> GetNextInternalNumber(int empresaId)
+        {
+            var buses = await _context.Autobuses
+                .IgnoreQueryFilters()
+                .Where(a => a.EmpresaID == empresaId)
+                .ToListAsync();
+
+            if (!buses.Any()) return Ok(1); 
+
+            int maxNumero = buses
+                .Select(a => {
+                    int.TryParse(a.NumeroBus, out int n);
+                    return n;
+                })
+                .Max();
+
+            return Ok(maxNumero + 1);
+        }
     }
 }
 

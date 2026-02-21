@@ -258,6 +258,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 .Where(v => v.IsDeleted)
                 .Include(v => v.Ruta)
                 .Include(v => v.Autobus)
+                    .ThenInclude(a => a.Empresa)
                 .ToListAsync();
         }
 
