@@ -1,9 +1,12 @@
-﻿namespace Proyecto_EmpresaBus_API.Request
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Proyecto_EmpresaBus_API.Request
 {
     public class RegisterRequestDto
     {
         public string NombreCompleto { get; set; }
         public string Email { get; set; }
+        [MinLength(6, ErrorMessage = "La contraseña debe tener al menos 6 caracteres.")]
         public string Password { get; set; }
         public string DNI { get; set; }
         public string? Rol { get; set; }
