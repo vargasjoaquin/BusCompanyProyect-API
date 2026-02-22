@@ -71,10 +71,10 @@ namespace Proyecto_EmpresaBus_API.Controllers
         public async Task<ActionResult<IEnumerable<int>>> GetOcupados(int viajeId)
         {
             var ocupados = await _context.Boletos
-                .Include(b => b.Asiento)
-                .Where(b => b.ViajeID == viajeId)
-                .Select(b => b.Asiento.NumeroAsiento)
-                .ToListAsync();
+                    .Include(b => b.Asiento)
+                    .Where(b => b.ViajeID == viajeId && b.EstadoBoleto == "Confirmado")
+                    .Select(b => b.Asiento.NumeroAsiento)
+                    .ToListAsync();
 
             return Ok(ocupados);
         }
@@ -141,10 +141,9 @@ namespace Proyecto_EmpresaBus_API.Controllers
             string nombre = boleto.Usuario.NombreCompleto;
             string rutaInfo = boleto.Viaje.Ruta.NombreRuta;
 
-            _context.Boletos.Remove(boleto);
+            boleto.EstadoBoleto = "Cancelado por el Usuario";
             await _context.SaveChangesAsync();
 
-            // --- NUEVA FUNCIONALIDAD: CONFIRMAR BAJA DE RESERVA ---
             string cuerpoBaja = $@"
         <div style='font-family: Arial; padding: 25px; border: 1px solid #888; border-radius: 15px;'>
             <h3 style='color: #444;'>Cancelación de Pasaje Confirmada</h3>
@@ -181,6 +180,22 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 if (asientosFisicos.Count != dto.Asientos.Count)
                     return BadRequest("Uno o más asientos solicitados no existen.");
 
+                var asientoIds = asientosFisicos.Select(a => a.AsientoID).ToList();
+
+                var boletosExistentes = await _context.Boletos
+                    .Where(b => b.ViajeID == dto.ViajeID && asientoIds.Contains(b.AsientoID))
+                    .ToListAsync();
+                if (boletosExistentes.Any(b => b.EstadoBoleto == "Confirmado"))
+                {
+                    return BadRequest("Uno o más asientos acaban de ser ocupados. Por favor, intente con otros.");
+                }
+
+                if (boletosExistentes.Any())
+                {
+                    _context.Boletos.RemoveRange(boletosExistentes);
+                    await _context.SaveChangesAsync();
+                }
+
                 var nuevosBoletos = new List<Boleto>();
                 foreach (var asiento in asientosFisicos)
                 {
@@ -215,27 +230,31 @@ namespace Proyecto_EmpresaBus_API.Controllers
                         byte[] pdfBytes = Proyecto_EmpresaBus_API.Helpers.PdfGenerator.GenerarTicketPdf(datosFull, usuario, dto.Asientos, total);
 
                         string mensajeStyled = $@"
-                    <div style='font-family: Arial; padding: 20px; border: 1px solid #ddd; border-radius: 15px; max-width: 500px;'>
-                        <h2 style='color: #4CAF50;'>¡Confirmación de Viaje! 🚌</h2>
-                        <p>Hola <strong>{usuario.NombreCompleto}</strong>,</p>
-                        <p>Tu compra ha sido procesada con éxito. Aquí tienes tu itinerario:</p>
-                        <ul style='list-style: none; padding: 0;'>
-                            <li><strong>Ruta:</strong> {datosFull.Ruta.NombreRuta}</li>
-                            <li><strong>Fecha:</strong> {datosFull.FechaSalida:dd/MM/yyyy HH:mm} hs</li>
-                            <li><strong>Asientos:</strong> {string.Join(", ", dto.Asientos)}</li>
-                        </ul>
-                        <p>Hemos adjuntado tu ticket PDF a este correo.</p>
-                        <br><p>Gracias por elegir <strong>Bux App</strong>.</p>
-                    </div>";
+                <div style='font-family: Arial; padding: 20px; border: 1px solid #ddd; border-radius: 15px; max-width: 500px;'>
+                    <h2 style='color: #4CAF50;'>¡Confirmación de Viaje! 🚌</h2>
+                    <p>Hola <strong>{usuario.NombreCompleto}</strong>,</p>
+                    <p>Tu compra ha sido procesada con éxito. Aquí tienes tu itinerario:</p>
+                    <ul style='list-style: none; padding: 0;'>
+                        <li><strong>Ruta:</strong> {datosFull.Ruta.NombreRuta}</li>
+                        <li><strong>Fecha:</strong> {datosFull.FechaSalida:dd/MM/yyyy HH:mm} hs</li>
+                        <li><strong>Asientos:</strong> {string.Join(", ", dto.Asientos)}</li>
+                    </ul>
+                    <p>Hemos adjuntado tu ticket PDF a este correo.</p>
+                    <br><p>Gracias por elegir <strong>Bux App</strong>.</p>
+                </div>";
 
                         _ = Task.Run(async () => {
+
+                            string nombreLimpio = usuario.NombreCompleto.Replace(" ", "_");
+                            string nombreTicket = $"Ticket-Bux-{nombreLimpio}.pdf";
+
                             await _emailService.SendEmailAsync(
                                 usuario.Email,
                                 "¡Viaje Confirmado! - Ticket Adjunto",
                                 mensajeStyled,
                                 true,
                                 pdfBytes,
-                                $"Ticket_Bux_{datosFull.ViajeID}.pdf"
+                                nombreTicket
                             );
                         });
                     }
