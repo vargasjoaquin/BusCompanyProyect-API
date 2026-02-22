@@ -116,15 +116,14 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 }
             }
 
-            usuarioEnDb.NombreCompleto = usuarioDto.NombreCompleto;
-            usuarioEnDb.Email = usuarioDto.Email;
-            usuarioEnDb.DNI = usuarioDto.DNI;
-            usuarioEnDb.Telefono = usuarioDto.Telefono;
-            usuarioEnDb.Direccion = usuarioDto.Direccion;
-            usuarioEnDb.Edad = usuarioDto.Edad;
-            usuarioEnDb.Sexo = usuarioDto.Sexo;
-
-            _context.Entry(usuarioEnDb).State = EntityState.Modified;
+            usuarioEnDb.NombreCompleto = usuarioDto.NombreCompleto ?? usuarioEnDb.NombreCompleto;
+            usuarioEnDb.Email = usuarioDto.Email ?? usuarioEnDb.Email;
+            usuarioEnDb.DNI = usuarioDto.DNI ?? usuarioEnDb.DNI;
+            usuarioEnDb.Telefono = usuarioDto.Telefono ?? usuarioEnDb.Telefono;
+            usuarioEnDb.Direccion = usuarioDto.Direccion ?? usuarioEnDb.Direccion;
+            usuarioEnDb.Edad = usuarioDto.Edad ?? usuarioEnDb.Edad;
+            usuarioEnDb.Sexo = usuarioDto.Sexo ?? usuarioEnDb.Sexo;
+            usuarioEnDb.Rol = usuarioDto.Rol ?? usuarioEnDb.Rol;
 
             if (!string.IsNullOrEmpty(usuarioDto.Ciudad) && usuarioDto.ProvinciaID.HasValue)
             {
@@ -158,8 +157,15 @@ namespace Proyecto_EmpresaBus_API.Controllers
             }
 
 
-            await _context.SaveChangesAsync();
-            return NoContent();
+            try
+            {
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Error al guardar: " + ex.Message);
+            }
         }
 
         [HttpDelete("{id}")]

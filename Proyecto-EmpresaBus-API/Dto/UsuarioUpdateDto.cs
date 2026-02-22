@@ -5,32 +5,43 @@ namespace Proyecto_EmpresaBus_API.Dto
 {
     public class UsuarioUpdateDto
     {
+        [JsonPropertyName("UsuarioID")]
         public int UsuarioID { get; set; }
 
-        [Required]
-        [StringLength(150)]
+        [JsonPropertyName("nombreCompleto")]
         public string NombreCompleto { get; set; }
 
-        [Required]
-        [EmailAddress]
-        [StringLength(100)]
+        [JsonPropertyName("email")]
         public string Email { get; set; }
 
-        [Required]
+        [JsonPropertyName("rol")]
         public string Rol { get; set; }
-        [JsonPropertyName("password")]
+
+        [JsonPropertyName("Password")]
         [MinLength(6, ErrorMessage = "La contraseña debe tener al menos 6 caracteres.")]
         public string? Password { get; set; }
+
+        [JsonPropertyName("dni")]
         [StringLength(8, ErrorMessage = "El DNI debe tener máximo 8 caracteres.")]
         public string DNI { get; set; }
 
+        [JsonPropertyName("direccion")]
         public string? Direccion { get; set; }
+
+        [JsonPropertyName("telefono")]
         [StringLength(13, ErrorMessage = "El teléfono debe tener máximo 13 caracteres.")]
         public string? Telefono { get; set; }
+
+        [JsonPropertyName("sexo")]
         public string? Sexo { get; set; }
+
+        [JsonPropertyName("edad")]
         public int? Edad { get; set; }
-        public string? Provincia { get; set; }
+
+        [JsonPropertyName("ciudad")]
         public string? Ciudad { get; set; }
+
+        [JsonPropertyName("provinciaID")]
         public int? ProvinciaID { get; set; }
     }
 }
