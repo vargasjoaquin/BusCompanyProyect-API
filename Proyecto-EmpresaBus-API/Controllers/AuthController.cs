@@ -199,7 +199,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
             await _context.SaveChangesAsync();
 
             string mvcBaseUrl = _configuration["AppMvcUrl"];
-            string resetLink = $"{mvcBaseUrl}restablecer-clave/{token}";
+            string resetLink = $"{mvcBaseUrl}Auth/ResetPassword?token={token}";
 
             string mensaje = $@"
         <div style='font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 40px; border-radius: 10px;'>
