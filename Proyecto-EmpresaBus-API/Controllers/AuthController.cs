@@ -216,7 +216,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
             </div>
         </div>";
 
-            await _emailService.SendEmailAsync(usuario.Email, "Restablecer Contraseña - Bux App", mensaje);
+            await _emailService.SendEmailAsync(usuario.Email, "Restablecer Contraseña - Bux App", mensaje, true);
 
             return Ok(new { Message = "Se ha enviado un enlace de recuperación a tu correo." });
         }
