@@ -105,6 +105,17 @@ namespace Proyecto_EmpresaBus_API.Controllers
                     return BadRequest("El email ya está en uso.");
             }
 
+            if (usuarioEnDb.Telefono != usuarioDto.Telefono)
+            {
+                bool existeTelefono = await _context.Usuarios
+                        .AnyAsync(u => u.Telefono == usuarioDto.Telefono && u.UsuarioID != id);
+
+                if (existeTelefono)
+                {
+                    return BadRequest("El número de teléfono ya está registrado por otro usuario.");
+                }
+            }
+
             usuarioEnDb.NombreCompleto = usuarioDto.NombreCompleto;
             usuarioEnDb.Email = usuarioDto.Email;
             usuarioEnDb.DNI = usuarioDto.DNI;
@@ -112,6 +123,8 @@ namespace Proyecto_EmpresaBus_API.Controllers
             usuarioEnDb.Direccion = usuarioDto.Direccion;
             usuarioEnDb.Edad = usuarioDto.Edad;
             usuarioEnDb.Sexo = usuarioDto.Sexo;
+
+            _context.Entry(usuarioEnDb).State = EntityState.Modified;
 
             if (!string.IsNullOrEmpty(usuarioDto.Ciudad) && usuarioDto.ProvinciaID.HasValue)
             {
@@ -138,7 +151,12 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(usuarioDto.Password)) usuarioEnDb.PasswordHash = usuarioDto.Password;
+            if (!string.IsNullOrWhiteSpace(usuarioDto.Password))
+            {
+                usuarioEnDb.PasswordHash = BCrypt.Net.BCrypt.HashPassword(usuarioDto.Password);
+                _context.Entry(usuarioEnDb).Property(u => u.PasswordHash).IsModified = true;
+            }
+
 
             await _context.SaveChangesAsync();
             return NoContent();
