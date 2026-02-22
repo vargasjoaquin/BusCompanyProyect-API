@@ -25,11 +25,11 @@ namespace Proyecto_EmpresaBus_API.Controllers
         public async Task<ActionResult<IEnumerable<Viaje>>> GetViajes()
         {
             return await _context.Viajes
-                                 .Include(v => v.Ruta).ThenInclude(r => r.Origen)
-                                 .Include(v => v.Ruta).ThenInclude(r => r.Destino)
-                                 .Include(v => v.Autobus).ThenInclude(a => a.Empresa)
-                                 .Include(v => v.Boletos)
-                                 .ToListAsync();
+                         .Include(v => v.Ruta).ThenInclude(r => r.Origen)
+                         .Include(v => v.Ruta).ThenInclude(r => r.Destino)
+                         .Include(v => v.Autobus).ThenInclude(a => a.Empresa)
+                         .Include(v => v.Boletos)
+                         .ToListAsync();
         }
 
         [HttpGet("Buscar")]
@@ -41,10 +41,11 @@ namespace Proyecto_EmpresaBus_API.Controllers
                                                                         [FromQuery] int? empresaId)
         {
             var query = _context.Viajes
-                                .Include(v => v.Ruta).ThenInclude(r => r.Origen).ThenInclude(o => o.Provincia)
-                                .Include(v => v.Ruta).ThenInclude(r => r.Destino).ThenInclude(d => d.Provincia)
-                                .Include(v => v.Autobus).ThenInclude(a => a.Empresa)
-                                .AsQueryable();
+                        .Include(v => v.Ruta).ThenInclude(r => r.Origen).ThenInclude(o => o.Provincia)
+                        .Include(v => v.Ruta).ThenInclude(r => r.Destino).ThenInclude(d => d.Provincia)
+                        .Include(v => v.Autobus).ThenInclude(a => a.Empresa)
+                        .Include(v => v.Boletos)
+                        .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(origen))
             {
@@ -187,10 +188,8 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
             if (viaje == null) return NotFound();
 
-            // --- NUEVA FUNCIONALIDAD: NOTIFICAR CANCELACIÓN A PASAJEROS ---
             if (viaje.Boletos.Any())
             {
-                // Agrupamos para no mandarle 4 mails si la persona compró 4 butacas juntas
                 var correosYPersonas = viaje.Boletos.Select(b => b.Usuario).Distinct().ToList();
 
                 foreach (var user in correosYPersonas)
