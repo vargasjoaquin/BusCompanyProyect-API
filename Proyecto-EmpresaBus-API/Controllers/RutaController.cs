@@ -146,85 +146,67 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
             var paradasAnteriores = _context.RutaParadas.Where(rp => rp.RutaID == rutaId);
             _context.RutaParadas.RemoveRange(paradasAnteriores);
-
             await _context.SaveChangesAsync();
 
             var nuevasParadasRuta = new List<RutaParada>();
+            var puntosGeograficos = new List<Localidad>();
             int orden = 1;
 
-            var puntosGeograficos = new List<Localidad>();
-
             puntosGeograficos.Add(ruta.Origen);
+            var pOrigen = await GetOrCreateParada(ruta.OrigenID);
+            nuevasParadasRuta.Add(new RutaParada { RutaID = rutaId, ParadaID = pOrigen.ParadaID, Orden = orden++ });
 
-            var paradaOrigen = await GetOrCreateParada(ruta.OrigenID);
-            nuevasParadasRuta.Add(new RutaParada { RutaID = rutaId, ParadaID = paradaOrigen.ParadaID, Orden = orden++ });
-
-            if (dto.LocalidadesIds != null)
+            if (dto.LocalidadesIds != null && dto.LocalidadesIds.Any())
             {
                 foreach (var locId in dto.LocalidadesIds)
                 {
-                    if (locId != ruta.OrigenID && locId != ruta.DestinoID)
+                    var loc = await _context.Localidades.FindAsync(locId);
+                    if (loc != null && locId != ruta.OrigenID && locId != ruta.DestinoID)
                     {
-                        var loc = await _context.Localidades.FindAsync(locId);
-                        if (loc != null)
-                        {
-                            puntosGeograficos.Add(loc); 
-
-                            var paradaIntermedia = await GetOrCreateParada(locId);
-                            nuevasParadasRuta.Add(new RutaParada { RutaID = rutaId, ParadaID = paradaIntermedia.ParadaID, Orden = orden++ });
-                        }
+                        puntosGeograficos.Add(loc);
+                        var pInt = await GetOrCreateParada(locId);
+                        nuevasParadasRuta.Add(new RutaParada { RutaID = rutaId, ParadaID = pInt.ParadaID, Orden = orden++ });
                     }
                 }
             }
 
             puntosGeograficos.Add(ruta.Destino);
-
-            var paradaDestino = await GetOrCreateParada(ruta.DestinoID);
-            nuevasParadasRuta.Add(new RutaParada { RutaID = rutaId, ParadaID = paradaDestino.ParadaID, Orden = orden++ });
+            var pDestino = await GetOrCreateParada(ruta.DestinoID);
+            nuevasParadasRuta.Add(new RutaParada { RutaID = rutaId, ParadaID = pDestino.ParadaID, Orden = orden++ });
 
             _context.RutaParadas.AddRange(nuevasParadasRuta);
 
-
-            double distanciaTotalKm = 0;
-
+            double distanciaTotal = 0;
             for (int i = 0; i < puntosGeograficos.Count - 1; i++)
             {
-                var puntoA = puntosGeograficos[i];
-                var puntoB = puntosGeograficos[i + 1];
-
-                distanciaTotalKm += CalcularDistanciaHaversine(
-                    (double)puntoA.Latitud, (double)puntoA.Longitud,
-                    (double)puntoB.Latitud, (double)puntoB.Longitud
+                distanciaTotal += CalcularDistanciaHaversine(
+                    (double)puntosGeograficos[i].Latitud, (double)puntosGeograficos[i].Longitud,
+                    (double)puntosGeograficos[i + 1].Latitud, (double)puntosGeograficos[i + 1].Longitud
                 );
             }
 
-            ruta.DistanciaKM = (decimal)distanciaTotalKm;
-            _context.Entry(ruta).State = EntityState.Modified;
-
+            ruta.DistanciaKM = (decimal)distanciaTotal;
             await _context.SaveChangesAsync();
 
-            return Ok(new
-            {
-                Message = "Itinerario actualizado",
-                TotalParadas = orden - 1,
-                NuevaDistancia = Math.Round(distanciaTotalKm, 2)
-            });
+            return Ok(new { Message = "Mapa actualizado", Distancia = Math.Round(distanciaTotal, 2) });
         }
 
         private async Task<Parada> GetOrCreateParada(int localidadId)
         {
             var parada = await _context.Paradas.FirstOrDefaultAsync(p => p.LocalidadID == localidadId);
+            var loc = await _context.Localidades.FindAsync(localidadId);
 
             if (parada == null)
             {
-                
-                var loc = await _context.Localidades.FindAsync(localidadId);
+                decimal latVal = loc.Latitud != 0 ? loc.Latitud : -34.6037m;
+                decimal lonVal = loc.Longitud != 0 ? loc.Longitud : -58.3816m;
+
                 parada = new Parada
                 {
                     LocalidadID = localidadId,
                     NombreParada = "Terminal " + loc.NombreLocalidad,
-                    Latitud = 0, 
-                    Longitud = 0
+                    Latitud = latVal,
+                    Longitud = lonVal
                 };
                 _context.Paradas.Add(parada);
                 await _context.SaveChangesAsync();
@@ -234,17 +216,16 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
         private double CalcularDistanciaHaversine(double lat1, double lon1, double lat2, double lon2)
         {
-            if (lat1 == 0 || lat2 == 0) return 100; // Valor por defecto si no hay coordenadas cargadas
+            if ((lat1 == 0 && lat2 == 0) || (lat1 == lat2 && lon1 == lon2)) return 50.0;
 
-            var R = 6371; // Radio de la tierra en KM
+            var R = 6371;
             var dLat = ToRadians(lat2 - lat1);
             var dLon = ToRadians(lon2 - lon1);
             var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
                     Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
                     Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
             var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-            var d = R * c;
-            return d; // Retorna KM
+            return R * c;
         }
 
         private double ToRadians(double angle) => (Math.PI / 180) * angle;
