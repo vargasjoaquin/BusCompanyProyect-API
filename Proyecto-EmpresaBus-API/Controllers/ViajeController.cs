@@ -97,14 +97,20 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
             DateTime fechaSalida = viajeDto.FechaViaje.Date + viajeDto.HoraSalida.TimeOfDay;
 
-            DateTime inicioRango = fechaSalida.AddMinutes(-20);
-            DateTime finRango = fechaSalida.AddMinutes(5);
+            DateTime inicioRango = fechaSalida.AddHours(-3);
+            DateTime finRango = fechaSalida.AddHours(3);
+
+            bool busOcupado = await _context.Viajes
+        .AnyAsync(v => v.AutobusID == viajeDto.AutobusID &&
+                       v.FechaSalida >= inicioRango && v.FechaSalida <= finRango && !v.IsDeleted);
 
             bool plataformaOcupada = await _context.Viajes
                 .AnyAsync(v => v.Plataforma == viajeDto.Plataforma &&
                                v.FechaSalida >= inicioRango &&
                                v.FechaSalida <= finRango &&
                                !v.IsDeleted);
+
+            if (busOcupado) return BadRequest("Este autobús ya tiene un viaje asignado en un horario cercano.");
 
             if (plataformaOcupada)
             {
