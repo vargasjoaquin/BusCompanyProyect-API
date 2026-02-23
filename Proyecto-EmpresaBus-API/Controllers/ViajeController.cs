@@ -25,6 +25,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
         public async Task<ActionResult<IEnumerable<Viaje>>> GetViajes()
         {
             return await _context.Viajes
+                         .AsNoTracking()
                          .Include(v => v.Ruta).ThenInclude(r => r.Origen)
                          .Include(v => v.Ruta).ThenInclude(r => r.Destino)
                          .Include(v => v.Autobus).ThenInclude(a => a.Empresa)
@@ -41,6 +42,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
                                                                         [FromQuery] int? empresaId)
         {
             var query = _context.Viajes
+                        .AsNoTracking()
                         .Include(v => v.Ruta).ThenInclude(r => r.Origen).ThenInclude(o => o.Provincia)
                         .Include(v => v.Ruta).ThenInclude(r => r.Destino).ThenInclude(d => d.Provincia)
                         .Include(v => v.Autobus).ThenInclude(a => a.Empresa)
