@@ -18,7 +18,7 @@ namespace Proyecto_EmpresaBus_API.Request
         [StringLength(13, ErrorMessage = "El teléfono no puede superar los 13 caracteres.")]
         public string? Telefono { get; set; }
 
-        public int? Edad { get; set; }
+        public DateTime? FechaNacimiento { get; set; }
         public string? Sexo { get; set; }
     }
 }

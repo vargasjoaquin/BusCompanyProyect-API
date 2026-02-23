@@ -89,7 +89,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
                     Direccion = registerDto.Direccion,
                     Telefono = registerDto.Telefono,
                     LocalidadID = locId,
-                    Edad = registerDto.Edad,
+                    FechaNacimiento = registerDto.FechaNacimiento,
                     Sexo = registerDto.Sexo
                 };
 

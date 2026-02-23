@@ -23,7 +23,7 @@ namespace Proyecto_EmpresaBus_API.Dto
         public string? Direccion { get; set; }
         public string? Telefono { get; set; }
         public string? Sexo { get; set; }
-        public int? Edad { get; set; }
+        public DateTime? FechaNacimiento { get; set; }
         public string? Provincia { get; set; }
         public string? Ciudad { get; set; }
     }

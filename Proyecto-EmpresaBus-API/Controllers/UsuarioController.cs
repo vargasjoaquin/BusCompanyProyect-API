@@ -50,7 +50,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 Direccion = u.Direccion,
                 Telefono = u.Telefono,
                 Ciudad = u.Localidad != null ? u.Localidad.NombreLocalidad : "No especificada",
-                Edad = u.Edad,
+                FechaNacimiento = u.FechaNacimiento,
                 Sexo = u.Sexo,
                 Provincia = (u.Localidad != null && u.Localidad.Provincia != null)
                     ? u.Localidad.Provincia.NombreProvincia
@@ -80,7 +80,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 FechaCreacion = usuario.FechaCreacion,
                 Direccion = usuario.Direccion,
                 Telefono = usuario.Telefono,
-                Edad = usuario.Edad,
+                FechaNacimiento = usuario.FechaNacimiento,
                 Sexo = usuario.Sexo,
                 Ciudad = usuario.Localidad?.NombreLocalidad,
                 Provincia = usuario.Localidad?.Provincia?.NombreProvincia,
@@ -121,7 +121,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
             usuarioEnDb.DNI = usuarioDto.DNI ?? usuarioEnDb.DNI;
             usuarioEnDb.Telefono = usuarioDto.Telefono;
             usuarioEnDb.Direccion = usuarioDto.Direccion ?? usuarioEnDb.Direccion;
-            usuarioEnDb.Edad = usuarioDto.Edad ?? usuarioEnDb.Edad;
+            usuarioEnDb.FechaNacimiento = usuarioDto.FechaNacimiento ?? usuarioEnDb.FechaNacimiento;
             usuarioEnDb.Sexo = usuarioDto.Sexo ?? usuarioEnDb.Sexo;
             usuarioEnDb.Rol = usuarioDto.Rol ?? usuarioEnDb.Rol;
 

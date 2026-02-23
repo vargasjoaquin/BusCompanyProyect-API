@@ -35,8 +35,8 @@ namespace Proyecto_EmpresaBus_API.Dto
         [JsonPropertyName("sexo")]
         public string? Sexo { get; set; }
 
-        [JsonPropertyName("edad")]
-        public int? Edad { get; set; }
+        [JsonPropertyName("fechaNacimiento")]
+        public DateTime? FechaNacimiento { get; set; }
 
         [JsonPropertyName("ciudad")]
         public string? Ciudad { get; set; }
