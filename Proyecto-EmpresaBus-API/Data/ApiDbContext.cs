@@ -34,7 +34,9 @@ public class ApiDbContext : DbContext
 
 
         modelBuilder.Entity<Boleto>()
-            .HasIndex(b => new { b.ViajeID, b.AsientoID }).IsUnique();
+        .HasIndex(b => new { b.ViajeID, b.AsientoID })
+        .HasFilter("[EstadoBoleto] = 'Confirmado'")
+        .IsUnique();
 
 
         modelBuilder.Entity<Ruta>()

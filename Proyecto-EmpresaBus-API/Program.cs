@@ -13,7 +13,14 @@ QuestPDF.Settings.License = LicenseType.Community;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<ApiDbContext>(opt
-    => opt.UseSqlServer(builder.Configuration.GetConnectionString("connLocal")));
+    => opt.UseSqlServer(builder.Configuration.GetConnectionString("connLocal"),
+    sqlServerOptionsAction: sqlOptions =>
+    {
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorNumbersToAdd: null);
+    }));
 
 builder.Services.AddAuthentication(options =>
 {

@@ -26,28 +26,21 @@ namespace Proyecto_EmpresaBus_API.Controllers
         [HttpPost]
         public async Task<ActionResult<Boleto>> ComprarBoleto(BoletoCreateDto boletoDto)
         {
-            var viaje = await _context.Viajes
-                .Include(v => v.Ruta)
-                .FirstOrDefaultAsync(v => v.ViajeID == boletoDto.ViajeID);
-
-            if (viaje == null) return NotFound("Viaje no existe");
+            var viaje = await _context.Viajes.FindAsync(boletoDto.ViajeID);
+            if (viaje == null) return NotFound("El viaje no existe.");
 
             var asientoFisico = await _context.Asientos
                 .FirstOrDefaultAsync(a => a.AutobusID == viaje.AutobusID && a.NumeroAsiento == boletoDto.NumeroAsiento);
 
-            if (asientoFisico == null)
-            {
-                return BadRequest($"El asiento {boletoDto.NumeroAsiento} no existe en la configuración del autobús.");
-            }
+            if (asientoFisico == null) return BadRequest($"El asiento {boletoDto.NumeroAsiento} no existe en este bus.");
 
+            // CORRECCIÓN: Solo bloquear si está "Confirmado"
             bool asientoOcupado = await _context.Boletos.AnyAsync(b =>
                 b.ViajeID == boletoDto.ViajeID &&
-                b.AsientoID == asientoFisico.AsientoID);
+                b.AsientoID == asientoFisico.AsientoID &&
+                b.EstadoBoleto == "Confirmado");
 
-            if (asientoOcupado)
-            {
-                return BadRequest($"El asiento {boletoDto.NumeroAsiento} ya está ocupado.");
-            }
+            if (asientoOcupado) return BadRequest($"El asiento {boletoDto.NumeroAsiento} ya está ocupado.");
 
             var nuevoBoleto = new Boleto
             {
@@ -61,7 +54,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
             _context.Boletos.Add(nuevoBoleto);
             await _context.SaveChangesAsync();
-
             return CreatedAtAction("GetBoleto", new { id = nuevoBoleto.BoletoID }, nuevoBoleto);
         }
 
@@ -166,108 +158,118 @@ namespace Proyecto_EmpresaBus_API.Controllers
             if (dto.Asientos == null || !dto.Asientos.Any())
                 return BadRequest("Debe seleccionar al menos un asiento.");
 
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            var strategy = _context.Database.CreateExecutionStrategy();
 
-            try
+            return await strategy.ExecuteAsync(async () =>
             {
-                var viaje = await _context.Viajes.Include(v => v.Ruta).FirstOrDefaultAsync(v => v.ViajeID == dto.ViajeID);
-                if (viaje == null) return NotFound("Viaje no encontrado");
-
-                var asientosFisicos = await _context.Asientos
-                    .Where(a => a.AutobusID == viaje.AutobusID && dto.Asientos.Contains(a.NumeroAsiento))
-                    .ToListAsync();
-
-                if (asientosFisicos.Count != dto.Asientos.Count)
-                    return BadRequest("Uno o más asientos solicitados no existen.");
-
-                var asientoIds = asientosFisicos.Select(a => a.AsientoID).ToList();
-
-                var boletosExistentes = await _context.Boletos
-                    .Where(b => b.ViajeID == dto.ViajeID && asientoIds.Contains(b.AsientoID))
-                    .ToListAsync();
-                if (boletosExistentes.Any(b => b.EstadoBoleto == "Confirmado"))
-                {
-                    return BadRequest("Uno o más asientos acaban de ser ocupados. Por favor, intente con otros.");
-                }
-
-                if (boletosExistentes.Any())
-                {
-                    _context.Boletos.RemoveRange(boletosExistentes);
-                    await _context.SaveChangesAsync();
-                }
-
-                var nuevosBoletos = new List<Boleto>();
-                foreach (var asiento in asientosFisicos)
-                {
-                    nuevosBoletos.Add(new Boleto
-                    {
-                        ViajeID = dto.ViajeID,
-                        UsuarioID = dto.UsuarioID,
-                        AsientoID = asiento.AsientoID,
-                        FechaCompra = DateTime.UtcNow,
-                        EstadoBoleto = "Confirmado",
-                        PrecioFinal = viaje.PrecioBase
-                    });
-                }
-
-                _context.Boletos.AddRange(nuevosBoletos);
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                using var transaction = await _context.Database.BeginTransactionAsync();
 
                 try
                 {
-                    var datosFull = await _context.Viajes
-                        .Include(v => v.Ruta).ThenInclude(r => r.Origen)
-                        .Include(v => v.Ruta).ThenInclude(r => r.Destino)
-                        .Include(v => v.Autobus).ThenInclude(a => a.Empresa)
-                        .FirstOrDefaultAsync(v => v.ViajeID == dto.ViajeID);
+                    var viaje = await _context.Viajes.Include(v => v.Ruta).FirstOrDefaultAsync(v => v.ViajeID == dto.ViajeID);
+                    if (viaje == null) return NotFound("Viaje no encontrado");
 
-                    var usuario = await _context.Usuarios.FindAsync(dto.UsuarioID);
+                    var asientosFisicos = await _context.Asientos
+                        .Where(a => a.AutobusID == viaje.AutobusID && dto.Asientos.Contains(a.NumeroAsiento))
+                        .ToListAsync();
 
-                    if (datosFull != null && usuario != null)
+                    if (asientosFisicos.Any(a => a.AsientoID == 0))
                     {
-                        decimal total = datosFull.PrecioBase * dto.Asientos.Count;
-                        byte[] pdfBytes = Proyecto_EmpresaBus_API.Helpers.PdfGenerator.GenerarTicketPdf(datosFull, usuario, dto.Asientos, total);
+                        return BadRequest("Error de integridad: Los asientos en la base de datos no tienen un ID válido.");
+                    }
 
-                        string mensajeStyled = $@"
-                <div style='font-family: Arial; padding: 20px; border: 1px solid #ddd; border-radius: 15px; max-width: 500px;'>
-                    <h2 style='color: #4CAF50;'>¡Confirmación de Viaje! 🚌</h2>
-                    <p>Hola <strong>{usuario.NombreCompleto}</strong>,</p>
-                    <p>Tu compra ha sido procesada con éxito. Aquí tienes tu itinerario:</p>
-                    <ul style='list-style: none; padding: 0;'>
-                        <li><strong>Ruta:</strong> {datosFull.Ruta.NombreRuta}</li>
-                        <li><strong>Fecha:</strong> {datosFull.FechaSalida:dd/MM/yyyy HH:mm} hs</li>
-                        <li><strong>Asientos:</strong> {string.Join(", ", dto.Asientos)}</li>
-                    </ul>
-                    <p>Hemos adjuntado tu ticket PDF a este correo.</p>
-                    <br><p>Gracias por elegir <strong>Bux App</strong>.</p>
-                </div>";
+                    if (asientosFisicos.Count != dto.Asientos.Count)
+                        return BadRequest("Uno o más asientos solicitados no existen.");
 
-                        _ = Task.Run(async () => {
+                    var asientoIds = asientosFisicos.Select(a => a.AsientoID).ToList();
 
-                            string nombreLimpio = usuario.NombreCompleto.Replace(" ", "_");
-                            string nombreTicket = $"Ticket-Bux-{nombreLimpio}.pdf";
+                    var boletosActivos = await _context.Boletos
+                        .AnyAsync(b => b.ViajeID == dto.ViajeID &&
+                                       asientoIds.Contains(b.AsientoID) &&
+                                       b.EstadoBoleto == "Confirmado");
 
-                            await _emailService.SendEmailAsync(
-                                usuario.Email,
-                                "¡Viaje Confirmado! - Ticket Adjunto",
-                                mensajeStyled,
-                                true,
-                                pdfBytes,
-                                nombreTicket
-                            );
+                    if (boletosActivos)
+                    {
+                        return BadRequest("Uno o más asientos acaban de ser ocupados. Por favor, intente con otros.");
+                    }
+
+                    var nuevosBoletos = new List<Boleto>();
+                    foreach (var asiento in asientosFisicos)
+                    {
+                        nuevosBoletos.Add(new Boleto
+                        {
+                            ViajeID = dto.ViajeID,
+                            UsuarioID = dto.UsuarioID,
+                            AsientoID = asiento.AsientoID,
+                            FechaCompra = DateTime.UtcNow,
+                            EstadoBoleto = "Confirmado",
+                            PrecioFinal = viaje.PrecioBase
                         });
                     }
-                }
-                catch { /* Logger */ }
 
-                return Ok(new { Message = $"Se compraron {nuevosBoletos.Count} boletos exitosamente." });
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return StatusCode(500, $"Error interno: {ex.Message}");
-            }
+                    _context.Boletos.AddRange(nuevosBoletos);
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    try
+                    {
+                        var datosFull = await _context.Viajes
+                            .Include(v => v.Ruta).ThenInclude(r => r.Origen)
+                            .Include(v => v.Ruta).ThenInclude(r => r.Destino)
+                            .Include(v => v.Autobus).ThenInclude(a => a.Empresa)
+                            .FirstOrDefaultAsync(v => v.ViajeID == dto.ViajeID);
+
+                        var usuario = await _context.Usuarios.FindAsync(dto.UsuarioID);
+
+                        if (datosFull != null && usuario != null)
+                        {
+                            decimal total = datosFull.PrecioBase * dto.Asientos.Count;
+                            byte[] pdfBytes = Proyecto_EmpresaBus_API.Helpers.PdfGenerator.GenerarTicketPdf(datosFull, usuario, dto.Asientos, total);
+
+                            string mensajeStyled = $@"
+                        <div style='font-family: Arial; padding: 20px; border: 1px solid #ddd; border-radius: 15px; max-width: 500px;'>
+                            <h2 style='color: #4CAF50;'>¡Confirmación de Viaje! 🚌</h2>
+                            <p>Hola <strong>{usuario.NombreCompleto}</strong>,</p>
+                            <p>Tu compra ha sido procesada con éxito. Aquí tienes tu itinerario:</p>
+                            <ul style='list-style: none; padding: 0;'>
+                                <li><strong>Ruta:</strong> {datosFull.Ruta.NombreRuta}</li>
+                                <li><strong>Fecha:</strong> {datosFull.FechaSalida:dd/MM/yyyy HH:mm} hs</li>
+                                <li><strong>Asientos:</strong> {string.Join(", ", dto.Asientos)}</li>
+                            </ul>
+                            <p>Hemos adjuntado tu ticket PDF a este correo.</p>
+                            <br><p>Gracias por elegir <strong>Bux App</strong>.</p>
+                        </div>";
+
+                            _ = Task.Run(async () => {
+                                try
+                                {
+                                    string nombreLimpio = usuario.NombreCompleto.Replace(" ", "_");
+                                    string nombreTicket = $"Ticket-Bux-{nombreLimpio}.pdf";
+
+                                    await _emailService.SendEmailAsync(
+                                        usuario.Email,
+                                        "¡Viaje Confirmado! - Ticket Adjunto",
+                                        mensajeStyled,
+                                        true,
+                                        pdfBytes,
+                                        nombreTicket
+                                    );
+                                }
+                                catch { }
+                            });
+                        }
+                    }
+                    catch { }
+
+                    return Ok(new { Message = $"Se compraron {nuevosBoletos.Count} boletos exitosamente." });
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    var mensajeError = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                    return StatusCode(500, $"Error real en BD: {mensajeError}");
+                }
+            });
         }
     }
 }
