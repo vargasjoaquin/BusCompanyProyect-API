@@ -12,6 +12,17 @@ namespace Proyecto_EmpresaBus_API.Services
             _configuration = configuration;
         }
 
+        /// <summary>
+        /// Envía un correo electrónico de forma asíncrona.
+        /// Permite enviar contenido y adjuntar archivos opcionalmente.
+        /// </summary>
+        /// <param name="destinatario">Dirección de correo del destinatario.</param>
+        /// <param name="asunto">Asunto del mensaje.</param>
+        /// <param name="mensaje">Contenido del mensaje.</param>
+        /// <param name="isHtml">Indica si el contenido del mensaje está en formato HTML.</param>
+        /// <param name="archivoAdjunto">Archivo adjunto en formato byte[].</param>
+        /// <param name="nombreArchivo">Nombre del archivo adjunto.</param>
+        /// <returns>Tarea asincrónica que representa la operación de envío.</returns>
         public async Task SendEmailAsync(string destinatario, string asunto, string mensaje, bool isHtml = false, byte[]? archivoAdjunto = null, string nombreArchivo = null)
         {
             var smtpServer = _configuration["EmailSettings:SmtpServer"];
@@ -26,8 +37,10 @@ namespace Proyecto_EmpresaBus_API.Services
 
             var builder = new BodyBuilder();
 
-            if (isHtml) builder.HtmlBody = mensaje;
-            else builder.TextBody = mensaje;
+            if (isHtml) 
+                builder.HtmlBody = mensaje;
+            else 
+                builder.TextBody = mensaje;
 
             if (archivoAdjunto != null && !string.IsNullOrEmpty(nombreArchivo))
             {

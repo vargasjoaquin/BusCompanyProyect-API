@@ -7,6 +7,18 @@ namespace Proyecto_EmpresaBus_API.Helpers
 {
     public static class PdfGenerator
     {
+        /// <summary>
+        /// Genera el archivo PDF del ticket de viaje.
+        /// El documento incluye dos secciones (talones):
+        /// uno para el chofer/transportista y otro para el pasajero,
+        /// con información detallada del viaje, usuario, asientos
+        /// y total abonado.
+        /// </summary>
+        /// <param name="viaje">Información del viaje.</param>
+        /// <param name="usuario">Datos del pasajero.</param>
+        /// <param name="asientos">Lista de asientos reservados.</param>
+        /// <param name="total">Importe total abonado.</param>
+        /// <returns>Archivo PDF en formato byte.</returns>
         public static byte[] GenerarTicketPdf(Viaje viaje, Usuario usuario, List<int> asientos, decimal total)
         {
             return Document.Create(container =>
@@ -37,6 +49,18 @@ namespace Proyecto_EmpresaBus_API.Helpers
             }).GeneratePdf();
         }
 
+        /// <summary>
+        /// Construye el diseño visual de cada talón dentro del ticket.
+        /// Se encarga de estructurar la información del viaje,
+        /// empresa, pasajero, plataforma, horarios, importe
+        /// y datos comerciales en el formato definido.
+        /// </summary>
+        /// <param name="container">Contenedor gráfico de QuestPDF.</param>
+        /// <param name="viaje">Información del viaje.</param>
+        /// <param name="usuario">Datos del pasajero.</param>
+        /// <param name="asientos">Lista de asientos reservados.</param>
+        /// <param name="total">Importe total abonado.</param>
+        /// <param name="tipoTalon">Descripción del tipo de talón.</param>
         private static void DiseñarTalon(IContainer container, Viaje viaje, Usuario usuario, List<int> asientos, decimal total, string tipoTalon)
         {
             container.Column(col =>

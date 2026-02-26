@@ -20,6 +20,12 @@ namespace Proyecto_EmpresaBus_API.Controllers
             _context = context;
         }
 
+        /// <summary>
+        /// Obtiene el listado de usuarios.
+        /// Si el usuario autenticado es Administrador, devuelve todos los usuarios.
+        /// En caso contrario, devuelve únicamente sus propios datos.
+        /// </summary>
+        /// <returns>Lista de usuarios en formato DTO.</returns>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<UsuarioResponseDto>>> GetUsuarios()
         {
@@ -60,6 +66,11 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return Ok(usuariosDto);
         }
 
+        /// <summary>
+        /// Obtiene los datos detallados de un usuario específico por su id.
+        /// </summary>
+        /// <param name="id">Id del usuario.</param>
+        /// <returns>Datos del usuario en formato DTO.</returns>
         [HttpGet("{id}")]
         public async Task<ActionResult<UsuarioResponseDto>> GetUsuario(int id)
         {
@@ -91,6 +102,14 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return Ok(usuarioDto);
         }
 
+        /// <summary>
+        /// Actualiza la información de un usuario existente.
+        /// Incluye validaciones de email y teléfono únicos,
+        /// actualización de localidad y modificación opcional de contraseña.
+        /// </summary>
+        /// <param name="id">Id del usuario.</param>
+        /// <param name="usuarioDto">Datos actualizados del usuario.</param>
+        /// <returns>Resultado de la operación.</returns>
         [HttpPut("{id}")]
         public async Task<IActionResult> PutUsuario(int id, UsuarioUpdateDto usuarioDto)
         {
@@ -156,7 +175,6 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 _context.Entry(usuarioEnDb).Property(u => u.PasswordHash).IsModified = true;
             }
 
-
             try
             {
                 await _context.SaveChangesAsync();
@@ -168,6 +186,14 @@ namespace Proyecto_EmpresaBus_API.Controllers
             }
         }
 
+        /// <summary>
+        /// Realiza una eliminación lógica del usuario (soft delete).
+        /// Solo los Administradores pueden ejecutar esta acción.
+        /// No permite eliminar cuentas con rol Administrador
+        /// ni usuarios que posean viajes activos pendientes.
+        /// </summary>
+        /// <param name="id">Id del usuario.</param>
+        /// <returns>Resultado de la operación.</returns>
         [HttpDelete("{id}")]
         [Authorize(Roles = "Administrador")]
         public async Task<IActionResult> DeleteUsuario(int id)
@@ -199,6 +225,12 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return Ok(new { Message = "Usuario eliminado." });
         }
 
+        // <summary>
+        /// Restaura un usuario previamente eliminado (soft delete).
+        /// Solo disponible para usuarios con rol Administrador.
+        /// </summary>
+        /// <param name="id">Id del usuario a restaurar.</param>
+        /// <returns>Resultado de la operación.</returns>
         [HttpPost("{id}/restore")]
         [Authorize(Roles = "Administrador")] // Solo el admin puede restaurar
         public async Task<IActionResult> RestoreUsuario(int id)
@@ -230,8 +262,11 @@ namespace Proyecto_EmpresaBus_API.Controllers
             }
         }
 
-        // GET: api/Usuario/deleted
-        // Endpoint para listar SOLO los usuarios eliminados (Papelera de Reciclaje)
+        /// <summary>
+        /// Obtiene el listado de usuarios eliminados lógicamente
+        /// (papelera de reciclaje). Solo accesible para Administradores.
+        /// </summary>
+        /// <returns>Lista de usuarios eliminados.</returns>
         [HttpGet("deleted")]
         [Authorize(Roles = "Administrador")]
         public async Task<ActionResult<IEnumerable<UsuarioResponseDto>>> GetDeletedUsuarios()

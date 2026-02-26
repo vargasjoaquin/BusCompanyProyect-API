@@ -26,14 +26,32 @@ namespace Proyecto_EmpresaBus_API.Controllers
             _emailService = emailService;
         }
 
+        /// <summary>
+        /// Registra un nuevo usuario en el sistema.
+        /// </summary>
+        /// <param name="registerDto">Datos de registro del usuario.</param>
+        /// <returns>
+        /// Resultado de la operación indicando éxito o errores de validación.
+        /// </returns>
+        /// <remarks>
+        /// Validaciones realizadas:
+        /// - Email único
+        /// - DNI único
+        /// - Teléfono único
+        /// - Creación automática de localidad si no existe
+        /// - Encriptación segura de contraseña
+        /// - Envío de email de bienvenida
+        /// </remarks>
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterRequestDto registerDto)
         {
             try
             {
-                if (!ModelState.IsValid) return BadRequest(ModelState);
+                if (!ModelState.IsValid) 
+                    return BadRequest(ModelState);
 
-                if (registerDto == null) return BadRequest("Datos de registro no recibidos.");
+                if (registerDto == null) 
+                    return BadRequest("Datos de registro no recibidos.");
 
                 var emailLimpio = registerDto.Email.Trim().ToLower();
 
@@ -130,6 +148,20 @@ namespace Proyecto_EmpresaBus_API.Controllers
             }
         }
 
+        /// <summary>
+        /// Autentica un usuario y genera un JWT válido.
+        /// </summary>
+        /// <param name="loginDto">Credenciales del usuario.</param>
+        /// <returns>
+        /// Token JWT junto con información básica del usuario autenticado.
+        /// </returns>
+        /// <remarks>
+        /// Flujo de validación:
+        /// - Normalización del email
+        /// - Verificación de contraseña mediante BCrypt
+        /// - Generación de claims de identidad
+        /// - Emisión de JWT firmado
+        /// </remarks>
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginRequestDto loginDto)
         {
@@ -186,11 +218,24 @@ namespace Proyecto_EmpresaBus_API.Controllers
             }
         }
 
+        /// <summary>
+        /// Genera un token de recuperación de contraseña y envía un email.
+        /// </summary>
+        /// <param name="forgotPassword">Correo del usuario.</param>
+        /// <returns>Resultado de la operación.</returns>
+        /// <remarks>
+        /// - Genera token único
+        /// - Define expiración temporal
+        /// - Construye enlace hacia aplicación MVC
+        /// - Envía email de recuperación
+        /// </remarks>
         [HttpPost("forgot-password")]
-        public async Task<IActionResult> ForgotPassword(ForgotPasswordDto model)
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordDto forgotPassword)
         {
-            var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Email == model.Email.ToLower());
-            if (usuario == null) return BadRequest("No existe una cuenta asociada a ese correo.");
+            var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Email == forgotPassword.Email.ToLower());
+            
+            if (usuario == null) 
+                return BadRequest("No existe una cuenta asociada a ese correo.");
 
             string token = Guid.NewGuid().ToString();
             usuario.PasswordResetToken = token;
@@ -221,15 +266,28 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return Ok(new { Message = "Se ha enviado un enlace de recuperación a tu correo." });
         }
 
+        /// <summary>
+        /// Restablece la contraseña utilizando un token válido.
+        /// </summary>
+        /// <param name="resetPassword">Token de recuperación y nueva contraseña.</param>
+        /// <returns>Resultado de la operación.</returns>
+        /// <remarks>
+        /// Verifica:
+        /// - Token válido
+        /// - Token no expirado
+        /// - Actualización segura de contraseña
+        /// - Limpieza de token
+        /// </remarks>
         [HttpPost("reset-password")]
-        public async Task<IActionResult> ResetPassword(ResetPasswordDto model)
+        public async Task<IActionResult> ResetPassword(ResetPasswordDto resetPassword)
         {
             var usuario = await _context.Usuarios.FirstOrDefaultAsync(u =>
-                u.PasswordResetToken == model.Token && u.ResetTokenExpires > DateTime.Now);
+                u.PasswordResetToken == resetPassword.Token && u.ResetTokenExpires > DateTime.Now);
 
-            if (usuario == null) return BadRequest("El enlace es inválido o ha expirado.");
+            if (usuario == null) 
+                return BadRequest("El enlace es inválido o ha expirado.");
 
-            usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.Password);
+            usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(resetPassword.Password);
 
             usuario.PasswordResetToken = null;
             usuario.ResetTokenExpires = null;

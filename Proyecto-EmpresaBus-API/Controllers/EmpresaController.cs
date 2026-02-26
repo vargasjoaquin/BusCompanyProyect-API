@@ -8,7 +8,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] // Requiere estar logueado para ver la lista
+    [Authorize]
     public class EmpresaController : ControllerBase
     {
         private readonly ApiDbContext _context;
@@ -18,15 +18,22 @@ namespace Proyecto_EmpresaBus_API.Controllers
             _context = context;
         }
 
-        // GET: api/Empresa
-        // Este es el método que usa tu Frontend para llenar el Picker
+        /// <summary>
+        /// Obtiene el listado de empresas registradas en el sistema.
+        /// Este método suele ser utilizado por el frontend para el picker.
+        /// </summary>
+        /// <returns>Listado de empresas.</returns>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Empresa>>> GetEmpresas()
         {
             return await _context.Empresas.ToListAsync();
         }
 
-        // GET: api/Empresa/5
+        /// <summary>
+        /// Obtiene una empresa específica mediante su id.
+        /// </summary>
+        /// <param name="id">Id de la empresa.</param>
+        /// <returns>Empresa encontrada.</returns>
         [HttpGet("{id}")]
         public async Task<ActionResult<Empresa>> GetEmpresa(int id)
         {
@@ -40,8 +47,12 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return empresa;
         }
 
-        // POST: api/Empresa
-        // Solo administradores pueden crear empresas nuevas
+        /// <summary>
+        /// Registra una nueva empresa en el sistema.
+        /// Solo los usuarios con rol Administrador pueden realizar esta operación.
+        /// </summary>
+        /// <param name="empresa">Entidad empresa a crear.</param>
+        /// <returns>Empresa creada.</returns>
         [HttpPost]
         [Authorize(Roles = "Administrador")]
         public async Task<ActionResult<Empresa>> PostEmpresa(Empresa empresa)
@@ -52,7 +63,13 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return CreatedAtAction("GetEmpresa", new { id = empresa.EmpresaID }, empresa);
         }
 
-        // PUT: api/Empresa/5
+        /// <summary>
+        /// Actualiza los datos de una empresa existente.
+        /// Requiere permisos de Administrador.
+        /// </summary>
+        /// <param name="id">Id de la empresa.</param>
+        /// <param name="empresa">Datos actualizados.</param>
+        /// <returns>Resultado de la operación.</returns>
         [HttpPut("{id}")]
         [Authorize(Roles = "Administrador")]
         public async Task<IActionResult> PutEmpresa(int id, Empresa empresa)
@@ -83,12 +100,19 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return NoContent();
         }
 
-        // DELETE: api/Empresa/5
+        /// <summary>
+        /// Elimina una empresa del sistema.
+        /// La operación se bloquea si la empresa posee autobuses asociados.
+        /// Requiere rol Administrador.
+        /// </summary>
+        /// <param name="id">Id de la empresa.</param>
+        /// <returns>Resultado de la operación.</returns>
         [HttpDelete("{id}")]
         [Authorize(Roles = "Administrador")]
         public async Task<IActionResult> DeleteEmpresa(int id)
         {
             var empresa = await _context.Empresas.FindAsync(id);
+
             if (empresa == null)
             {
                 return NotFound();
@@ -96,6 +120,7 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
             // Validar si tiene autobuses asignados antes de borrar
             bool tieneBuses = await _context.Autobuses.AnyAsync(a => a.EmpresaID == id);
+            
             if (tieneBuses)
             {
                 return BadRequest("No se puede eliminar la empresa porque tiene autobuses asignados.");
@@ -107,6 +132,11 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return NoContent();
         }
 
+        /// <summary>
+        /// Verifica si una empresa existe en la base de datos.
+        /// </summary>
+        /// <param name="id">Id de la empresa.</param>
+        /// <returns>True si existe; de lo contrario, false.</returns>
         private bool EmpresaExists(int id)
         {
             return _context.Empresas.Any(e => e.EmpresaID == id);

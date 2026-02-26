@@ -17,6 +17,10 @@ namespace Proyecto_EmpresaBus_API.Controllers
             _context = context;
         }
 
+        /// <summary>
+        /// Obtiene todas las rutas registradas incluyendo origen, destino y paradas.
+        /// </summary>
+        /// <returns>Listado completo de rutas.</returns>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Ruta>>> GetRutas()
         {
@@ -27,6 +31,11 @@ namespace Proyecto_EmpresaBus_API.Controllers
                                  .ToListAsync();
         }
 
+        /// <summary>
+        /// Obtiene una ruta específica mediante su id.
+        /// </summary>
+        /// <param name="id">Id de la ruta.</param>
+        /// <returns>Ruta encontrada.</returns>
         [HttpGet("{id}")]
         public async Task<ActionResult<Ruta>> GetRuta(int id)
         {
@@ -35,11 +44,18 @@ namespace Proyecto_EmpresaBus_API.Controllers
                                      .Include(r => r.Destino)
                                      .FirstOrDefaultAsync(r => r.RutaID == id);
 
-            if (ruta == null) return NotFound();
+            if (ruta == null) 
+                return NotFound();
 
             return ruta;
         }
 
+        /// <summary>
+        /// Crea una nueva ruta validando que origen y destino existan.
+        /// La distancia es calculada automáticamente mediante fórmula Haversine.
+        /// </summary>
+        /// <param name="rutaDto">Datos necesarios para la creación de la ruta.</param>
+        /// <returns>Ruta creada.</returns>
         [HttpPost]
         public async Task<ActionResult<Ruta>> PostRuta(RutaCreateDto rutaDto)
         {
@@ -51,12 +67,12 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 return BadRequest("El Origen o Destino especificado no existe en la base de datos de Localidades.");
             }
 
-            double lat1 = (double)origen.Latitud;
-            double lon1 = (double)origen.Longitud;
-            double lat2 = (double)destino.Latitud;
-            double lon2 = (double)destino.Longitud;
+            double latitud1 = (double)origen.Latitud;
+            double longitud1 = (double)origen.Longitud;
+            double latitud2 = (double)destino.Latitud;
+            double longitud2 = (double)destino.Longitud;
 
-            decimal distanciaCalculada = (decimal)CalcularDistanciaHaversine(lat1, lon1, lat2, lon2);
+            decimal distanciaCalculada = (decimal)CalcularDistanciaHaversine(latitud1, longitud1, latitud2, longitud2);
 
             var nuevaRuta = new Ruta
             {
@@ -71,17 +87,29 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return CreatedAtAction(nameof(GetRuta), new { id = nuevaRuta.RutaID }, nuevaRuta);
         }
 
+        // <summary>
+        /// Actualiza los datos de una ruta existente.
+        /// Permite modificar nombre, origen y destino.
+        /// </summary>
+        /// <param name="id">Id de la ruta.</param>
+        /// <param name="rutaDto">Datos actualizados.</param>
+        /// <returns>Resultado de la operación.</returns>
         [HttpPut("{id}")]
         public async Task<IActionResult> PutRuta(int id, RutaCreateDto rutaDto)
         {
             var ruta = await _context.Rutas.FindAsync(id);
-            if (ruta == null) return NotFound();
+            
+            if (ruta == null) 
+                return NotFound();
 
             var origen = await _context.Localidades.FirstOrDefaultAsync(l => l.NombreLocalidad == rutaDto.Origen);
             var destino = await _context.Localidades.FirstOrDefaultAsync(l => l.NombreLocalidad == rutaDto.Destino);
 
-            if (origen != null) ruta.OrigenID = origen.LocalidadID;
-            if (destino != null) ruta.DestinoID = destino.LocalidadID;
+            if (origen != null) 
+                ruta.OrigenID = origen.LocalidadID;
+            
+            if (destino != null) 
+                ruta.DestinoID = destino.LocalidadID;
 
             ruta.NombreRuta = rutaDto.NombreRuta;
 
@@ -93,18 +121,27 @@ namespace Proyecto_EmpresaBus_API.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!_context.Rutas.Any(r => r.RutaID == id)) return NotFound();
-                else throw;
+                if (!_context.Rutas.Any(r => r.RutaID == id)) 
+                    return NotFound();
+                else 
+                    throw;
             }
 
             return NoContent();
         }
 
+        /// <summary>
+        /// Elimina una ruta del sistema.
+        /// </summary>
+        /// <param name="id">Id de la ruta.</param>
+        /// <returns>Resultado de la operación.</returns>
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRuta(int id)
         {
             var ruta = await _context.Rutas.FindAsync(id);
-            if (ruta == null) return NotFound();
+
+            if (ruta == null) 
+                return NotFound();
 
             _context.Rutas.Remove(ruta);
             await _context.SaveChangesAsync();
@@ -112,6 +149,12 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return NoContent();
         }
 
+        /// <summary>
+        /// Obtiene el itinerario de una ruta, ordenado geográficamente.
+        /// Devuelve información de las paradas asociadas.
+        /// </summary>
+        /// <param name="id">Id de la ruta.</param>
+        /// <returns>Listado de paradas.</returns>
         [HttpGet("{id}/itinerario")]
         public async Task<ActionResult<IEnumerable<object>>> GetItinerario(int id)
         {
@@ -129,11 +172,19 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 })
                 .ToListAsync();
 
-            if (paradas == null || !paradas.Any()) return Ok(new List<object>());
+            if (paradas == null || !paradas.Any()) 
+                return Ok(new List<object>());
 
             return Ok(paradas);
         }
 
+        /// <summary>
+        /// Actualiza completamente el itinerario de una ruta.
+        /// Recalcula automáticamente la distancia total en kilómetros.
+        /// </summary>
+        /// <param name="rutaId">Id de la ruta.</param>
+        /// <param name="dto">Listado de localidades intermedias.</param>
+        /// <returns>Resultado de la operación.</returns>
         [HttpPost("{rutaId}/actualizar-itinerario")]
         public async Task<IActionResult> ActualizarItinerario(int rutaId, [FromBody] ItinerarioDto dto)
         {
@@ -142,7 +193,8 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 .Include(r => r.Destino)
                 .FirstOrDefaultAsync(r => r.RutaID == rutaId);
 
-            if (ruta == null) return NotFound("Ruta no encontrada");
+            if (ruta == null) 
+                return NotFound("Ruta no encontrada");
 
             var paradasAnteriores = _context.RutaParadas.Where(rp => rp.RutaID == rutaId);
             _context.RutaParadas.RemoveRange(paradasAnteriores);
@@ -158,13 +210,13 @@ namespace Proyecto_EmpresaBus_API.Controllers
 
             if (dto.LocalidadesIds != null && dto.LocalidadesIds.Any())
             {
-                foreach (var locId in dto.LocalidadesIds)
+                foreach (var localidadId in dto.LocalidadesIds)
                 {
-                    var loc = await _context.Localidades.FindAsync(locId);
-                    if (loc != null && locId != ruta.OrigenID && locId != ruta.DestinoID)
+                    var localidades = await _context.Localidades.FindAsync(localidadId);
+                    if (localidades != null && localidadId != ruta.OrigenID && localidadId != ruta.DestinoID)
                     {
-                        puntosGeograficos.Add(loc);
-                        var pInt = await GetOrCreateParada(locId);
+                        puntosGeograficos.Add(localidades);
+                        var pInt = await GetOrCreateParada(localidadId);
                         nuevasParadasRuta.Add(new RutaParada { RutaID = rutaId, ParadaID = pInt.ParadaID, Orden = orden++ });
                     }
                 }
@@ -191,22 +243,25 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return Ok(new { Message = "Mapa actualizado", Distancia = Math.Round(distanciaTotal, 2) });
         }
 
+        /// <summary>
+        /// Obtiene una parada asociada a una localidad o la crea si no existe.
+        /// </summary>
         private async Task<Parada> GetOrCreateParada(int localidadId)
         {
             var parada = await _context.Paradas.FirstOrDefaultAsync(p => p.LocalidadID == localidadId);
-            var loc = await _context.Localidades.FindAsync(localidadId);
+            var localidades = await _context.Localidades.FindAsync(localidadId);
 
             if (parada == null)
             {
-                decimal latVal = loc.Latitud != 0 ? loc.Latitud : -34.6037m;
-                decimal lonVal = loc.Longitud != 0 ? loc.Longitud : -58.3816m;
+                decimal latitudValor = localidades.Latitud != 0 ? localidades.Latitud : -34.6037m;
+                decimal longitudValor = localidades.Longitud != 0 ? localidades.Longitud : -58.3816m;
 
                 parada = new Parada
                 {
                     LocalidadID = localidadId,
-                    NombreParada = "Terminal " + loc.NombreLocalidad,
-                    Latitud = latVal,
-                    Longitud = lonVal
+                    NombreParada = "Terminal " + localidades.NombreLocalidad,
+                    Latitud = latitudValor,
+                    Longitud = longitudValor
                 };
                 _context.Paradas.Add(parada);
                 await _context.SaveChangesAsync();
@@ -214,20 +269,27 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return parada;
         }
 
-        private double CalcularDistanciaHaversine(double lat1, double lon1, double lat2, double lon2)
+        /// <summary>
+        /// Calcula la distancia entre dos puntos geográficos utilizando la fórmula Haversine.
+        /// </summary>
+        private double CalcularDistanciaHaversine(double latitud1, double longitud1, double latitud2, double longitud2)
         {
-            if ((lat1 == 0 && lat2 == 0) || (lat1 == lat2 && lon1 == lon2)) return 50.0;
+            if ((latitud1 == 0 && latitud2 == 0) || (latitud1 == latitud2 && longitud1 == longitud2)) 
+                return 50.0;
 
-            var R = 6371;
-            var dLat = ToRadians(lat2 - lat1);
-            var dLon = ToRadians(lon2 - lon1);
-            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
-                    Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
-                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
-            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-            return R * c;
+            var radio = 6371;
+            var distanciaLatitud = ToRadians(latitud2 - latitud1);
+            var distanciaLongitud = ToRadians(longitud2 - longitud1);
+            var average = Math.Sin(distanciaLatitud / 2) * Math.Sin(distanciaLatitud / 2) +
+                    Math.Cos(ToRadians(latitud1)) * Math.Cos(ToRadians(latitud2)) *
+                    Math.Sin(distanciaLongitud / 2) * Math.Sin(distanciaLongitud / 2);
+            var c = 2 * Math.Atan2(Math.Sqrt(average), Math.Sqrt(1 - average));
+            return radio * c;
         }
 
+        /// <summary>
+        /// Convierte grados a radianes.
+        /// </summary>
         private double ToRadians(double angle) => (Math.PI / 180) * angle;
     }
 }

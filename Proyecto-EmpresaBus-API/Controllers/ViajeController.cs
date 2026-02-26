@@ -21,6 +21,11 @@ namespace Proyecto_EmpresaBus_API.Controllers
             _emailService = emailService;
         }
 
+        /// <summary>
+        /// Obtiene el listado completo de viajes activos,
+        /// incluyendo ruta, origen, destino, autobús, empresa y boletos asociados.
+        /// </summary>
+        /// <returns>Lista de viajes.</returns>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Viaje>>> GetViajes()
         {
@@ -33,6 +38,15 @@ namespace Proyecto_EmpresaBus_API.Controllers
                          .ToListAsync();
         }
 
+        /// <summary>
+        /// Permite buscar viajes aplicando filtros opcionales
+        /// por origen, destino, fecha y empresa.
+        /// </summary>
+        /// <param name="origen">Nombre de localidad o provincia de origen.</param>
+        /// <param name="destino">Nombre de localidad o provincia de destino.</param>
+        /// <param name="fecha">Fecha de salida.</param>
+        /// <param name="empresaId">Id de la empresa.</param>
+        /// <returns>Lista de viajes que coincidan con los filtros.</returns>
         [HttpGet("Buscar")]
         [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<Viaje>>> BuscarViajes(
@@ -63,12 +77,20 @@ namespace Proyecto_EmpresaBus_API.Controllers
                                          v.Ruta.Destino.Provincia.NombreProvincia.ToLower().Contains(filtro));
             }
 
-            if (fecha.HasValue) query = query.Where(v => v.FechaSalida.Date == fecha.Value.Date);
-            if (empresaId.HasValue && empresaId > 0) query = query.Where(v => v.Autobus.EmpresaID == empresaId.Value);
+            if (fecha.HasValue) 
+                query = query.Where(v => v.FechaSalida.Date == fecha.Value.Date);
+
+            if (empresaId.HasValue && empresaId > 0) 
+                query = query.Where(v => v.Autobus.EmpresaID == empresaId.Value);
 
             return await query.ToListAsync();
         }
 
+        /// <summary>
+        /// Obtiene el detalle de un viaje específico por su id.
+        /// </summary>
+        /// <param name="id">Id del viaje.</param>
+        /// <returns>Viaje encontrado.</returns>
         [HttpGet("{id}")]
         public async Task<ActionResult<Viaje>> GetViaje(int id)
         {
@@ -78,20 +100,33 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 .Include(v => v.Autobus).ThenInclude(a => a.Empresa)
                 .FirstOrDefaultAsync(v => v.ViajeID == id);
 
-            if (viaje == null) return NotFound();
+            if (viaje == null) 
+                return NotFound();
 
             return viaje;
         }
 
+        /// <summary>
+        /// Crea un nuevo viaje validando:
+        /// existencia de ruta y autobús,
+        /// conflictos de horario (autobús y plataforma),
+        /// y cálculo automático de fecha estimada de llegada.
+        /// </summary>
+        /// <param name="viajeDto">Datos necesarios para crear el viaje.</param>
+        /// <returns>Viaje creado.</returns>
         [HttpPost]
         public async Task<ActionResult<Viaje>> PostViaje(ViajeCreateDto viajeDto)
         {
             var ruta = await _context.Rutas.FirstOrDefaultAsync(r => r.RutaID == viajeDto.RutaID);
-            if (ruta == null) return BadRequest("La RutaID no existe.");
+
+            if (ruta == null) 
+                return BadRequest("La RutaID no existe.");
 
             var autobus = await _context.Autobuses.Include(a => a.Empresa)
                                 .FirstOrDefaultAsync(a => a.AutobusID == viajeDto.AutobusID);
-            if (autobus == null) return BadRequest("El AutobusID no existe.");
+
+            if (autobus == null) 
+                return BadRequest("El AutobusID no existe.");
 
             var ultimoServicio = await _context.Viajes
                                         .Where(v => v.Autobus.EmpresaID == autobus.EmpresaID)
@@ -112,7 +147,8 @@ namespace Proyecto_EmpresaBus_API.Controllers
                                v.FechaSalida <= finRango &&
                                !v.IsDeleted);
 
-            if (busOcupado) return BadRequest("Este autobús ya tiene un viaje asignado en un horario cercano.");
+            if (busOcupado) 
+                return BadRequest("Este autobús ya tiene un viaje asignado en un horario cercano.");
 
             if (plataformaOcupada)
             {
@@ -144,14 +180,26 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return CreatedAtAction(nameof(GetViaje), new { id = nuevoViaje.ViajeID }, nuevoViaje);
         }
 
+        /// <summary>
+        /// Actualiza los datos de un viaje existente,
+        /// recalculando la hora estimada de llegada y validando
+        /// conflictos de plataforma.
+        /// </summary>
+        /// <param name="id">Id del viaje.</param>
+        /// <param name="viajeDto">Datos actualizados.</param>
+        /// <returns>Resultado de la operación.</returns>
         [HttpPut("{id}")]
         public async Task<IActionResult> PutViaje(int id, ViajeCreateDto viajeDto)
         {
             var viaje = await _context.Viajes.IgnoreQueryFilters().FirstOrDefaultAsync(v => v.ViajeID == id);
-            if (viaje == null) return NotFound("El viaje no existe.");
+
+            if (viaje == null) 
+                return NotFound("El viaje no existe.");
 
             var ruta = await _context.Rutas.FindAsync(viajeDto.RutaID);
-            if (ruta == null) return BadRequest("La RutaID no es válida.");
+
+            if (ruta == null) 
+                return BadRequest("La RutaID no es válida.");
 
             DateTime nuevaFechaSalida = viajeDto.FechaViaje.Date + viajeDto.HoraSalida.TimeOfDay;
             bool plataformaChocada = await _context.Viajes.AnyAsync(v =>
@@ -164,7 +212,10 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 return BadRequest($"La plataforma {viajeDto.Plataforma} ya está ocupada en ese horario.");
 
             double distancia = (double)ruta.DistanciaKM;
-            if (distancia <= 0) distancia = 100;
+
+            if (distancia <= 0) 
+                distancia = 100;
+
             double horasViaje = (distancia / 80.0) + 0.5;
 
             viaje.RutaID = viajeDto.RutaID;
@@ -185,16 +236,25 @@ namespace Proyecto_EmpresaBus_API.Controllers
             }
         }
 
+        /// <summary>
+        /// Realiza una eliminación lógica (soft delete) del viaje.
+        /// Si existen boletos asociados, se notifica por correo
+        /// a los usuarios afectados informando la cancelación.
+        /// Solo disponible para Administradores.
+        /// </summary>
+        /// <param name="id">Id del viaje.</param>
+        /// <returns>Resultado de la operación.</returns>
         [HttpDelete("{id}")]
         [Authorize(Roles = "Administrador")]
         public async Task<IActionResult> DeleteViaje(int id)
         {
             var viaje = await _context.Viajes
-        .Include(v => v.Ruta)
-        .Include(v => v.Boletos).ThenInclude(b => b.Usuario)
-        .FirstOrDefaultAsync(v => v.ViajeID == id);
+                        .Include(v => v.Ruta)
+                        .Include(v => v.Boletos).ThenInclude(b => b.Usuario)
+                        .FirstOrDefaultAsync(v => v.ViajeID == id);
 
-            if (viaje == null) return NotFound();
+            if (viaje == null) 
+                return NotFound();
 
             if (viaje.Boletos.Any())
             {
@@ -216,11 +276,17 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 }
             }
 
-            viaje.IsDeleted = true; // Aplicamos soft delete
+            viaje.IsDeleted = true;
             await _context.SaveChangesAsync();
             return NoContent();
         }
 
+        /// <summary>
+        /// Marca como eliminados todos los viajes vencidos
+        /// cuya fecha de salida ya haya pasado.
+        /// Solo accesible para Administradores.
+        /// </summary>
+        /// <returns>Resultado de la operación con cantidad de registros afectados.</returns>
         [HttpPost("LimpiarVencidos")]
         [Authorize(Roles = "Administrador")]
         public async Task<IActionResult> LimpiarVencidos()
@@ -245,17 +311,29 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return Ok(new { Message = $"Se han movido {viajesVencidos.Count} viajes vencidos a la papelera." });
         }
 
+        /// <summary>
+        /// Restaura un viaje previamente eliminado (soft delete).
+        /// </summary>
+        /// <param name="id">Id del viaje.</param>
+        /// <returns>Resultado de la operación.</returns>
         [HttpPost("{id}/restore")]
         public async Task<IActionResult> RestoreViaje(int id)
         {
             var viaje = await _context.Viajes.IgnoreQueryFilters().FirstOrDefaultAsync(v => v.ViajeID == id);
-            if (viaje == null) return NotFound();
+
+            if (viaje == null) 
+                return NotFound();
 
             viaje.IsDeleted = false; 
             await _context.SaveChangesAsync();
             return Ok();
         }
 
+        /// <summary>
+        /// Obtiene el listado de viajes eliminados.
+        /// Solo disponible para Administradores.
+        /// </summary>
+        /// <returns>Lista de viajes eliminados.</returns>
         [HttpGet("deleted")]
         [Authorize(Roles = "Administrador")]
         public async Task<ActionResult<IEnumerable<Viaje>>> GetDeletedViajes()
@@ -268,6 +346,5 @@ namespace Proyecto_EmpresaBus_API.Controllers
                     .ThenInclude(a => a.Empresa)
                 .ToListAsync();
         }
-
     }
 }

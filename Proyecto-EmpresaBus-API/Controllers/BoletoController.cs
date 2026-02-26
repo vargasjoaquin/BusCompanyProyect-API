@@ -22,25 +22,33 @@ namespace Proyecto_EmpresaBus_API.Controllers
             _emailService = emailService;
         }
 
-        // POST: api/Boleto
+        /// <summary>
+        /// Compra un boleto para un viaje y asiento específico.
+        /// Valida la existencia del viaje, del asiento físico y su disponibilidad.
+        /// </summary>
+        /// <param name="boletoDto">Datos necesarios para la compra del boleto.</param>
+        /// <returns>El boleto creado si la operación fue exitosa.</returns>
         [HttpPost]
         public async Task<ActionResult<Boleto>> ComprarBoleto(BoletoCreateDto boletoDto)
         {
             var viaje = await _context.Viajes.FindAsync(boletoDto.ViajeID);
-            if (viaje == null) return NotFound("El viaje no existe.");
+
+            if (viaje == null) 
+                return NotFound("El viaje no existe.");
 
             var asientoFisico = await _context.Asientos
                 .FirstOrDefaultAsync(a => a.AutobusID == viaje.AutobusID && a.NumeroAsiento == boletoDto.NumeroAsiento);
 
-            if (asientoFisico == null) return BadRequest($"El asiento {boletoDto.NumeroAsiento} no existe en este bus.");
+            if (asientoFisico == null) 
+                return BadRequest($"El asiento {boletoDto.NumeroAsiento} no existe en este bus.");
 
-            // CORRECCIÓN: Solo bloquear si está "Confirmado"
             bool asientoOcupado = await _context.Boletos.AnyAsync(b =>
                 b.ViajeID == boletoDto.ViajeID &&
                 b.AsientoID == asientoFisico.AsientoID &&
                 b.EstadoBoleto == "Confirmado");
 
-            if (asientoOcupado) return BadRequest($"El asiento {boletoDto.NumeroAsiento} ya está ocupado.");
+            if (asientoOcupado) 
+                return BadRequest($"El asiento {boletoDto.NumeroAsiento} ya está ocupado.");
 
             var nuevoBoleto = new Boleto
             {
@@ -57,7 +65,12 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return CreatedAtAction("GetBoleto", new { id = nuevoBoleto.BoletoID }, nuevoBoleto);
         }
 
-        // GET: api/Boleto/Ocupados/5
+        /// <summary>
+        /// Obtiene los números de asientos ocupados (confirmados) para un viaje.
+        /// Endpoint público utilizado por la UI para bloquear asientos.
+        /// </summary>
+        /// <param name="viajeId">Id del viaje.</param>
+        /// <returns>Lista de números de asientos ocupados.</returns>
         [HttpGet("Ocupados/{viajeId}")]
         [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<int>>> GetOcupados(int viajeId)
@@ -71,7 +84,13 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return Ok(ocupados);
         }
 
-        // GET: api/Boleto
+        /// <summary>
+        /// Obtiene el listado de boletos del sistema.
+        /// Permite filtrar opcionalmente por usuario.
+        /// Incluye relaciones completas (viaje, ruta, empresa, asiento).
+        /// </summary>
+        /// <param name="usuarioId">Id del usuario.</param>
+        /// <returns>Listado de boletos.</returns>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Boleto>>> GetBoletos([FromQuery] int? usuarioId)
         {
@@ -94,7 +113,12 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return Ok(lista);
         }
 
-        // GET: api/Boleto/5
+        /// <summary>
+        /// Obtiene el detalle completo de un boleto por su id.
+        /// Devuelve información del viaje, ruta, empresa y asiento.
+        /// </summary>
+        /// <param name="id">Id del boleto.</param>
+        /// <returns>Boleto encontrado.</returns>
         [HttpGet("{id}")]
         public async Task<ActionResult<Boleto>> GetBoleto(int id)
         {
@@ -113,21 +137,28 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 .Include(b => b.Usuario)
                 .FirstOrDefaultAsync(b => b.BoletoID == id);
 
-            if (boleto == null) return NotFound("El boleto no existe.");
+            if (boleto == null) 
+                return NotFound("El boleto no existe.");
 
             return boleto;
         }
 
-        // DELETE: api/Boleto/5
+        /// <summary>
+        /// Cancela un boleto existente.
+        /// Actualiza su estado y notifica al usuario vía correo electrónico.
+        /// </summary>
+        /// <param name="id">Id del boleto.</param>
+        /// <returns>Resultado de la operación.</returns>
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBoleto(int id)
         {
             var boleto = await _context.Boletos
-        .Include(b => b.Viaje).ThenInclude(v => v.Ruta)
-        .Include(b => b.Usuario)
-        .FirstOrDefaultAsync(b => b.BoletoID == id);
+                        .Include(b => b.Viaje).ThenInclude(v => v.Ruta)
+                        .Include(b => b.Usuario)
+                        .FirstOrDefaultAsync(b => b.BoletoID == id);
 
-            if (boleto == null) return NotFound();
+            if (boleto == null) 
+                return NotFound();
 
             string mailUsuario = boleto.Usuario.Email;
             string nombre = boleto.Usuario.NombreCompleto;
@@ -151,7 +182,13 @@ namespace Proyecto_EmpresaBus_API.Controllers
             return NoContent();
         }
 
-        // POST: api/Boleto/comprar-masivo
+        /// <summary>
+        /// Realiza la compra masiva de boletos para múltiples asientos.
+        /// Ejecuta la operación dentro de una transacción para garantizar consistencia.
+        /// Envía el ticket PDF por correo al finalizar.
+        /// </summary>
+        /// <param name="dto">Datos de compra masiva.</param>
+        /// <returns>Resultado de la operación.</returns>
         [HttpPost("comprar-masivo")]
         public async Task<IActionResult> ComprarBoletosMasivos(BoletoMasivoDto dto)
         {
@@ -167,7 +204,9 @@ namespace Proyecto_EmpresaBus_API.Controllers
                 try
                 {
                     var viaje = await _context.Viajes.Include(v => v.Ruta).FirstOrDefaultAsync(v => v.ViajeID == dto.ViajeID);
-                    if (viaje == null) return NotFound("Viaje no encontrado");
+                    
+                    if (viaje == null)
+                        return NotFound("Viaje no encontrado");
 
                     var asientosFisicos = await _context.Asientos
                         .Where(a => a.AutobusID == viaje.AutobusID && dto.Asientos.Contains(a.NumeroAsiento))
