@@ -78,6 +78,12 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IViajeService, ViajeService>();
+builder.Services.AddScoped<IBoletoService, BoletoService>();
+builder.Services.AddScoped<IBusService, BusService>();
+builder.Services.AddScoped<IUsuarioService, UsuarioService>();
+builder.Services.AddScoped<IUbicacionService, UbicacionService>();
 
 var app = builder.Build();
 
